@@ -330,6 +330,7 @@ public final class Processor {
                     .append("offers), ## How you could use it (specific to this user's projects), ")
                     .append("## Alternatives, ## Getting started.\n");
         }
+        p.append("Use the Google Search tool for this; do not answer from memory alone.\n");
         p.append("Format: plain text. Each section heading on its own line starting with '## '. Bullets ")
                 .append("start with '- '. No bold, no tables. Under 350 words. Say so when something could ")
                 .append("not be confirmed; never invent facts, dates or links.\n");

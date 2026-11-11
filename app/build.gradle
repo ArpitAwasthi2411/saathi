@@ -10,8 +10,8 @@ android {
         applicationId 'com.arpit.saathi'
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName '2.1'
+        versionCode 4
+        versionName '2.2'
     }
 
     // One fixed key so every build can install over the previous one without losing data.
