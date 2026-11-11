@@ -3,19 +3,15 @@ package com.arpit.saathi;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 public final class Prefs {
     public static final String DEFAULT_MODEL = "gemini-2.5-flash";
-    public static final String DEFAULT_PROFILE =
-            "Final-year B.Tech CSE (AI & DS) student at GHEC Bandla, Himachal Pradesh; also doing a BS in "
-            + "Data Science from IIT Madras. Looking for a 6-month robotics internship for the 8th semester "
-            + "(early 2027).\n"
-            + "Skills: ROS 2 Humble, Nav2, SLAM (Cartographer, SLAM Toolbox), Gazebo, YOLO, PyTorch, ESP32 "
-            + "firmware, Raspberry Pi, LLM integration.\n"
-            + "Projects: Pathik, an LLM-augmented autonomous indoor mobile robot (RPLiDAR A1, Pi 4, ESP32-S3); "
-            + "VestGuard, a fall-detection vest. First-author IEEE paper on YOLO pothole detection (OCIT 2025).\n"
-            + "Goals: GATE DA 2027, then M.Tech in robotics (perception and planning for mobile robots).\n"
-            + "Most interested in: autonomous mobile robots, SLAM, perception, planning, embodied AI, "
-            + "assistive robotics.";
+    public static final String DEFAULT_GROQ = "openai/gpt-oss-120b";
+    public static final String DEFAULT_OPENROUTER = "openrouter/free";
+
+    private static final Map<String, String> cache = new ConcurrentHashMap<>();
 
     private Prefs() {}
 
@@ -23,24 +19,76 @@ public final class Prefs {
         return c.getSharedPreferences("saathi", Context.MODE_PRIVATE);
     }
 
-    public static String key(Context c) { return sp(c).getString("key", "").trim(); }
+    // ---- API keys, stored encrypted ("key" is the Gemini key)
 
-    public static String modelSort(Context c) { return model(sp(c).getString("modelSort", "")); }
+    public static String key(Context c) { return secret(c, "key"); }
 
-    public static String modelResearch(Context c) { return model(sp(c).getString("modelResearch", "")); }
+    public static String groqKey(Context c) { return secret(c, "groq"); }
 
-    private static String model(String m) {
-        m = m == null ? "" : m.trim();
-        if (m.startsWith("models/")) m = m.substring(7);
-        return m.isEmpty() ? DEFAULT_MODEL : m;
+    public static String openRouterKey(Context c) { return secret(c, "openrouter"); }
+
+    static String secret(Context c, String name) {
+        String hit = cache.get(name);
+        if (hit != null) return hit;
+        SharedPreferences sp = sp(c);
+        String value;
+        String stored = sp.getString("enc_" + name, null);
+        if (stored != null) {
+            String d = Secure.dec(stored);
+            value = d == null ? "" : d.trim();
+        } else {
+            // a key saved by an older version in plain text: encrypt it now
+            value = sp.getString(name, "").trim();
+            if (!value.isEmpty()) {
+                String e = Secure.enc(value);
+                if (e != null) sp.edit().putString("enc_" + name, e).remove(name).apply();
+            }
+        }
+        cache.put(name, value);
+        return value;
     }
 
+    static void setSecret(Context c, String name, String value) {
+        value = value == null ? "" : value.trim();
+        SharedPreferences.Editor ed = sp(c).edit();
+        if (value.isEmpty()) {
+            ed.remove("enc_" + name).remove(name);
+        } else {
+            String e = Secure.enc(value);
+            if (e != null) ed.putString("enc_" + name, e).remove(name);
+            else ed.putString(name, value).remove("enc_" + name);
+        }
+        ed.apply();
+        cache.put(name, value);
+    }
+
+    // ---- models
+
+    public static String modelSort(Context c) { return model(c, "modelSort", DEFAULT_MODEL); }
+
+    public static String modelResearch(Context c) { return model(c, "modelResearch", DEFAULT_MODEL); }
+
+    public static String modelGroq(Context c) { return model(c, "modelGroq", DEFAULT_GROQ); }
+
+    public static String modelOpenRouter(Context c) { return model(c, "modelOpenRouter", DEFAULT_OPENROUTER); }
+
+    private static String model(Context c, String pref, String def) {
+        String m = sp(c).getString(pref, "").trim();
+        if (m.startsWith("models/")) m = m.substring(7);
+        return m.isEmpty() ? def : m;
+    }
+
+    // ---- the rest
+
     public static String profile(Context c) {
-        String p = sp(c).getString("profile", "");
-        return p.trim().isEmpty() ? DEFAULT_PROFILE : p;
+        String p = sp(c).getString("profile", "").trim();
+        return p.isEmpty() ? "(The user has not described themselves yet. Give a fit of about 50 and say the "
+                + "profile is missing.)" : p;
     }
 
     public static int digestHour(Context c) { return sp(c).getInt("digestHour", 20); }
 
     public static boolean wifiOnly(Context c) { return sp(c).getBoolean("wifiOnly", false); }
+
+    public static boolean lock(Context c) { return sp(c).getBoolean("lock", false); }
 }

@@ -21,7 +21,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -42,6 +41,8 @@ public class DetailActivity extends Activity {
         findViewById(R.id.btnDelete).setOnClickListener(v -> confirmDelete());
         findViewById(R.id.btnRetry).setOnClickListener(v -> retry());
         findViewById(R.id.btnCal).setOnClickListener(v -> addToCalendar());
+        findViewById(R.id.btnTask).setOnClickListener(v -> addTask());
+        findViewById(R.id.btnShare).setOnClickListener(v -> share());
     }
 
     @Override
@@ -75,7 +76,7 @@ public class DetailActivity extends Activity {
 
         TextView title = findViewById(R.id.title), summary = findViewById(R.id.summary);
         if (it.state == 0) {
-            title.setText(Prefs.key(this).isEmpty() ? "Waiting for your Gemini key" : "Sorting…");
+            title.setText(!Llm.any(this) ? "Waiting for an API key" : "Sorting…");
             summary.setText("Saathi reads the capture and fills this in, usually within a minute.");
         } else if (it.state == -1) {
             title.setText("Couldn't sort this one");
@@ -115,7 +116,8 @@ public class DetailActivity extends Activity {
         TextView open = findViewById(R.id.btnOpen);
         open.setVisibility(links.length > 0 ? View.VISIBLE : View.GONE);
         if (links.length > 0) {
-            open.setText("internship".equals(it.type) ? "Open apply link" : "Open link");
+            open.setText("internship".equals(it.type) ? "Open apply link"
+                    : "govt".equals(it.type) ? "Open official link" : "Open link");
             open.setOnClickListener(v -> openUrl(links[0]));
         }
         findViewById(R.id.btnCal).setVisibility(Ui.parseDay(it.deadline) != null ? View.VISIBLE : View.GONE);
@@ -152,14 +154,19 @@ public class DetailActivity extends Activity {
             }
         }
 
-        ImageView shot = findViewById(R.id.shot);
-        if (!it.image.isEmpty() && new File(it.image).exists()) {
+        LinearLayout shots = findViewById(R.id.shots);
+        shots.removeAllViews();
+        for (String path : it.images()) {
             BitmapFactory.Options o = new BitmapFactory.Options();
             o.inSampleSize = 2;
-            shot.setImageBitmap(BitmapFactory.decodeFile(it.image, o));
-            shot.setVisibility(View.VISIBLE);
-        } else {
-            shot.setVisibility(View.GONE);
+            ImageView iv = new ImageView(this);
+            iv.setAdjustViewBounds(true);
+            iv.setContentDescription("Captured screenshot");
+            iv.setImageBitmap(BitmapFactory.decodeFile(path, o));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = Ui.dp(this, 10);
+            shots.addView(iv, lp);
         }
 
         String from = Ui.appName(it.source);
@@ -257,9 +264,46 @@ public class DetailActivity extends Activity {
         return sb;
     }
 
+    private void addTask() {
+        if (it == null) return;
+        long due = 0;
+        Calendar day = Ui.parseDay(it.deadline);
+        if (day != null) { // suggest the evening before the deadline, if that is still ahead
+            day.add(Calendar.DAY_OF_YEAR, -1);
+            day.set(Calendar.HOUR_OF_DAY, 18);
+            if (day.getTimeInMillis() > System.currentTimeMillis()) due = day.getTimeInMillis();
+        }
+        TaskDialog.show(this, it.action.isEmpty() ? it.title : it.action, due, it.id);
+    }
+
+    /** Sends the item as plain text to any app: notes, WhatsApp, NotebookLM, email. */
+    private void share() {
+        if (it == null) return;
+        StringBuilder sb = new StringBuilder(it.title).append("\n\n").append(it.summary).append("\n");
+        if (!it.org.isEmpty()) sb.append("\nOrganisation: ").append(it.org);
+        if (!it.role.isEmpty()) sb.append("\nRole: ").append(it.role);
+        if (!it.location.isEmpty()) sb.append("\nLocation: ").append(it.location);
+        if (!it.stipend.isEmpty()) sb.append("\nStipend: ").append(it.stipend);
+        if (!it.eligibility.isEmpty()) sb.append("\nEligibility: ").append(it.eligibility);
+        if (!it.deadline.isEmpty()) sb.append("\nDeadline: ").append(Ui.prettyDate(it.deadline));
+        if (!it.action.isEmpty()) sb.append("\nNext step: ").append(it.action);
+        if (!it.research.isEmpty()) sb.append("\n\n").append(it.research);
+        if (!it.links.isEmpty()) sb.append("\n\nLinks:\n").append(it.links);
+        Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain")
+                .putExtra(Intent.EXTRA_SUBJECT, it.title)
+                .putExtra(Intent.EXTRA_TEXT, sb.toString());
+        startActivity(Intent.createChooser(send, "Share"));
+    }
+
     private void openUrl(String url) {
         try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim())));
+            Uri u = Uri.parse(url.trim());
+            String scheme = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.US);
+            if (!scheme.equals("https") && !scheme.equals("http")) {
+                Toast.makeText(this, "Not a web link, so Saathi won't open it", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            startActivity(new Intent(Intent.ACTION_VIEW, u));
         } catch (Exception e) {
             Toast.makeText(this, "No app can open this link", Toast.LENGTH_SHORT).show();
         }
@@ -314,10 +358,8 @@ public class DetailActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setMessage("Delete this item?")
                 .setPositiveButton("Delete", (d, w) -> {
-                    Reminders.cancel(this, id);
-                    if (it != null && !it.image.isEmpty()) new File(it.image).delete();
                     Db.removeListener(onChange);
-                    Db.get(this).delete(id);
+                    if (it != null) Capture.deleteItem(this, it);
                     finish();
                 })
                 .setNegativeButton("Cancel", null)

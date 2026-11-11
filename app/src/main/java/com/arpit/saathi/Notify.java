@@ -9,14 +9,15 @@ import android.content.Intent;
 public final class Notify {
     private Notify() {}
 
-    /** itemId <= 0 opens the inbox instead of one item. */
-    public static void post(Context c, int notifId, String channel, String title, String text, long itemId) {
-        Intent open;
-        if (itemId > 0) {
-            open = new Intent(c, DetailActivity.class).putExtra("id", itemId);
-        } else {
-            open = new Intent(c, MainActivity.class);
-        }
+    public static Intent item(Context c, long itemId) {
+        return new Intent(c, DetailActivity.class).putExtra("id", itemId);
+    }
+
+    public static Intent screen(Context c, Class<?> activity) {
+        return new Intent(c, activity);
+    }
+
+    public static void post(Context c, int notifId, String channel, String title, String text, Intent open) {
         open.setAction("open-" + notifId);
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pi = PendingIntent.getActivity(c, notifId, open,

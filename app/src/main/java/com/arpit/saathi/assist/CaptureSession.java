@@ -31,6 +31,8 @@ public class CaptureSession extends VoiceInteractionSession {
     private TextView status;
 
     private boolean waitingAssist, waitingShot, done;
+    /** A capture that is decided but not written yet, so "keep separate" can still change it. */
+    private boolean pending, merge;
     private String text = "", url = "", pkg = "";
     private Bitmap shot;
 
@@ -46,14 +48,24 @@ public class CaptureSession extends VoiceInteractionSession {
 
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(Ui.round(Color.parseColor("#171A21"), Ui.dp(c, 20)));
+        card.setBackground(Ui.round(Color.parseColor("#151925"), Ui.dp(c, 20)));
         int pad = Ui.dp(c, 18);
         card.setPadding(pad, pad, pad, pad);
         card.setElevation(Ui.dp(c, 12));
+        card.setOnClickListener(v -> {
+            if (pending && merge) {
+                merge = false;
+                say("Saved as a separate item ✓");
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(() -> hide(), 900);
+            } else {
+                hide();
+            }
+        });
 
         TextView name = new TextView(c);
         name.setText("SAATHI");
-        name.setTextColor(Color.parseColor("#2DD4BF"));
+        name.setTextColor(Color.parseColor("#7AA2FF"));
         name.setTextSize(11);
         name.setLetterSpacing(0.12f);
         name.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
@@ -61,7 +73,7 @@ public class CaptureSession extends VoiceInteractionSession {
 
         status = new TextView(c);
         status.setText("Capturing this screen…");
-        status.setTextColor(Color.parseColor("#ECEEF2"));
+        status.setTextColor(Color.parseColor("#ECEFF7"));
         status.setTextSize(16);
         status.setPadding(0, Ui.dp(c, 6), 0, 0);
         card.addView(status);
@@ -77,7 +89,10 @@ public class CaptureSession extends VoiceInteractionSession {
     @Override
     public void onShow(Bundle args, int showFlags) {
         super.onShow(args, showFlags);
+        commit(); // called again before the last popup closed: don't lose that capture
         done = false;
+        pending = false;
+        merge = false;
         text = "";
         url = "";
         pkg = "";
@@ -169,18 +184,39 @@ public class CaptureSession extends VoiceInteractionSession {
             hide();
             return;
         }
+        if (Capture.sensitive(pkg)) {
+            say("Not saved. Saathi never captures banking, payment or password apps.");
+            handler.postDelayed(() -> hide(), 2600);
+            return;
+        }
         if (text.isEmpty() && shot == null && url.isEmpty()) {
             say("Couldn't read this screen. In Saathi's settings, check that the assistant may use "
                     + "screen text and screenshots.");
-            handler.postDelayed(this::hide, 3500);
+            handler.postDelayed(() -> hide(), 3500);
             return;
         }
+        pending = true;
+        merge = Capture.canMerge(app, pkg);
+        String from = Ui.appName(pkg);
+        if (merge) {
+            say("Added to your last capture ✓\nSame post, next part. Tap here if this is a different post.");
+        } else {
+            say("Saved" + (from.isEmpty() ? "" : " from " + from) + " ✓  Sorting it in the background.\n"
+                    + "Long post? Scroll and capture again within 90 seconds to add to it.");
+        }
+        if (!merge) commit(); // a new item is written at once; a merge waits in case you tap "different post"
+        handler.postDelayed(() -> hide(), merge ? 3000 : 2000);
+    }
+
+    /** Writes the capture. Runs once, when the popup goes away. */
+    private void commit() {
+        if (!pending) return;
+        pending = false;
+        final Context app = getContext().getApplicationContext();
         final String fText = text, fUrl = url, fPkg = pkg;
         final Bitmap fShot = shot;
-        new Thread(() -> Capture.save(app, fText, fUrl, fPkg, fShot), "saathi-save").start();
-        String from = Ui.appName(pkg);
-        say("Saved" + (from.isEmpty() ? "" : " from " + from) + " ✓  Sorting it in the background.");
-        handler.postDelayed(this::hide, 1400);
+        final boolean fMerge = merge;
+        new Thread(() -> Capture.save(app, fText, fUrl, fPkg, fShot, fMerge), "saathi-save").start();
     }
 
     private void say(String s) {
@@ -190,6 +226,7 @@ public class CaptureSession extends VoiceInteractionSession {
     @Override
     public void onHide() {
         super.onHide();
+        commit();
         handler.removeCallbacksAndMessages(null);
         shot = null;
     }

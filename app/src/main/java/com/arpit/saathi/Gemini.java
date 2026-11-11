@@ -35,7 +35,8 @@ public final class Gemini {
         if (search) {
             body.put("tools", new JSONArray().put(new JSONObject().put("google_search", new JSONObject())));
         }
-        String res = http("POST", BASE + "models/" + model + ":generateContent", key, body.toString());
+        String res = http("POST", BASE + "models/" + model + ":generateContent", "x-goog-api-key", key,
+                body.toString());
 
         Reply r = new Reply();
         JSONArray cands = new JSONObject(res).optJSONArray("candidates");
@@ -70,7 +71,7 @@ public final class Gemini {
 
     /** Names of models this key can call with generateContent. */
     public static List<String> listModels(String key) throws Exception {
-        String res = http("GET", BASE + "models?pageSize=200", key, null);
+        String res = http("GET", BASE + "models?pageSize=200", "x-goog-api-key", key, null);
         List<String> out = new ArrayList<>();
         JSONArray models = new JSONObject(res).optJSONArray("models");
         if (models == null) return out;
@@ -90,13 +91,14 @@ public final class Gemini {
         return out;
     }
 
-    private static String http(String method, String url, String key, String body) throws IOException {
+    static String http(String method, String url, String header, String headerValue, String body)
+            throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         try {
             c.setRequestMethod(method);
             c.setConnectTimeout(20000);
             c.setReadTimeout(150000);
-            c.setRequestProperty("x-goog-api-key", key);
+            c.setRequestProperty(header, headerValue);
             if (body != null) {
                 c.setDoOutput(true);
                 c.setRequestProperty("Content-Type", "application/json; charset=utf-8");

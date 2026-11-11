@@ -21,9 +21,30 @@ Every later push builds a new APK that installs over the old one and keeps your 
    "Use text from screen" and "Use screenshot" on.
 3. On any post: long-press home or power (or swipe up from a bottom corner). "Share → Saathi" also works.
 
+## What it does
+
+- Capture any screen with the assistant gesture, or Share → Saathi. Several captures of one long post
+  (same app, within 90 seconds) join into one item.
+- Sorts into opportunities, government notices and exams, algorithms, tools and notes; researches each
+  in the background; reminds you before deadlines.
+- Tasks with reminders, and an Ask screen that answers from what you saved.
+- Models: Gemini, with Groq and OpenRouter (open-source models) as optional backups.
+
+## Privacy
+
+- Items, screenshots, notes and tasks stay in the app's private storage on the phone. No server, no
+  analytics, no backups.
+- API keys are encrypted with the Android Keystore.
+- Captures are sent to the model provider you configured so they can be read. Banking, payment and
+  password apps are never captured.
+- Optional app lock using the phone's fingerprint or screen lock.
+
 ## Layout
 
 - `assist/` — the assistant hook that captures the screen
+- `Capture.java` — storing and merging captures
 - `Processor.java` — sorting and research prompts
-- `Reminders.java`, `AlarmReceiver.java` — deadline alerts and the daily digest
-- `MainActivity`, `DetailActivity`, `SettingsActivity` — the three screens
+- `Llm.java`, `Gemini.java` — model providers
+- `Memory.java`, `AskActivity.java` — answering from saved items
+- `Reminders.java`, `AlarmReceiver.java` — deadline alerts, task reminders, daily digest
+- `Secure.java`, `LockActivity.java` — key encryption and app lock

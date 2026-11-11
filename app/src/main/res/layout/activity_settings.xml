@@ -71,7 +71,7 @@
                 style="@style/Input"
                 android:hint="Paste your key"
                 android:importantForAutofill="no"
-                android:inputType="textVisiblePassword"
+                android:inputType="textPassword"
                 android:singleLine="true" />
 
             <LinearLayout
@@ -94,7 +94,7 @@
                     android:layout_width="0dp"
                     android:layout_marginStart="5dp"
                     android:layout_weight="1"
-                    android:text="Test key" />
+                    android:text="Test keys" />
             </LinearLayout>
 
             <TextView
@@ -109,7 +109,55 @@
 
             <TextView
                 style="@style/Label"
-                android:text="Model for sorting" />
+                android:text="Extra models (optional backups)" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Open-source models through Groq and OpenRouter. Saathi switches to them when Gemini is busy or over its free limit."
+                android:textColor="@color/sub"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/keyGroq"
+                style="@style/Input"
+                android:hint="Groq key"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:singleLine="true" />
+
+            <EditText
+                android:id="@+id/modelGroq"
+                style="@style/Input"
+                android:layout_marginTop="8dp"
+                android:hint="Groq model"
+                android:importantForAutofill="no"
+                android:inputType="textNoSuggestions"
+                android:singleLine="true" />
+
+            <EditText
+                android:id="@+id/keyOpenRouter"
+                style="@style/Input"
+                android:layout_marginTop="14dp"
+                android:hint="OpenRouter key"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:singleLine="true" />
+
+            <EditText
+                android:id="@+id/modelOpenRouter"
+                style="@style/Input"
+                android:layout_marginTop="8dp"
+                android:hint="OpenRouter model"
+                android:importantForAutofill="no"
+                android:inputType="textNoSuggestions"
+                android:singleLine="true" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Gemini model for sorting" />
 
             <EditText
                 android:id="@+id/modelSort"
@@ -120,7 +168,7 @@
 
             <TextView
                 style="@style/Label"
-                android:text="Model for research (needs free Google Search)" />
+                android:text="Gemini model for research (needs free Google Search)" />
 
             <EditText
                 android:id="@+id/modelResearch"
@@ -140,6 +188,7 @@
                 android:importantForAutofill="no"
                 android:inputType="textMultiLine|textCapSentences"
                 android:lineSpacingExtra="3dp"
+                android:hint="Who you are, your skills, projects and what you are looking for"
                 android:minLines="5" />
 
             <TextView
@@ -162,6 +211,34 @@
                 android:text="Do the deep research only on Wi-Fi"
                 android:textColor="@color/text"
                 android:textSize="15sp" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Privacy" />
+
+            <CheckBox
+                android:id="@+id/lock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Lock Saathi with fingerprint or screen lock"
+                android:textColor="@color/text"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Everything is stored only on this phone, keys are encrypted, and nothing is backed up. What you capture is sent to the model provider you chose so it can be read, so don't capture private chats or documents. Banking, payment and password apps are skipped automatically."
+                android:textColor="@color/sub"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btnErase"
+                style="@style/BtnGhost"
+                android:layout_marginTop="14dp"
+                android:text="Erase all saved items and tasks"
+                android:textColor="@color/red" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

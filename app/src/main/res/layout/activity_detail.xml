@@ -128,6 +128,29 @@
                 android:text="Add deadline to calendar"
                 android:visibility="gone" />
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnTask"
+                    style="@style/BtnGhost"
+                    android:layout_width="0dp"
+                    android:layout_marginEnd="5dp"
+                    android:layout_weight="1"
+                    android:text="Add as task" />
+
+                <TextView
+                    android:id="@+id/btnShare"
+                    style="@style/BtnGhost"
+                    android:layout_width="0dp"
+                    android:layout_marginStart="5dp"
+                    android:layout_weight="1"
+                    android:text="Share / export" />
+            </LinearLayout>
+
             <TextView
                 style="@style/Label"
                 android:text="Research" />
@@ -156,14 +179,12 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
-            <ImageView
-                android:id="@+id/shot"
+            <LinearLayout
+                android:id="@+id/shots"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="22dp"
-                android:adjustViewBounds="true"
-                android:contentDescription="Captured screenshot"
-                android:visibility="gone" />
+                android:layout_marginTop="12dp"
+                android:orientation="vertical" />
 
             <TextView
                 android:id="@+id/meta"

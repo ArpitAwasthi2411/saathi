@@ -14,6 +14,16 @@ public class Item {
             image = "", research = "", sources = "", error = "";
     public int fit = -1;
     public int attempts;
+    public int rev;
+
+    /** Screenshot files that still exist (a merged capture has several). */
+    public java.util.List<String> images() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (String p : image.split("\n")) {
+            if (!p.trim().isEmpty() && new java.io.File(p.trim()).exists()) out.add(p.trim());
+        }
+        return out;
+    }
 
     static Item from(Cursor c) {
         Item i = new Item();
@@ -42,6 +52,7 @@ public class Item {
         i.sources = s(c, "sources");
         i.error = s(c, "error");
         i.attempts = c.getInt(c.getColumnIndexOrThrow("attempts"));
+        i.rev = c.getInt(c.getColumnIndexOrThrow("rev"));
         return i;
     }
 

@@ -1,6 +1,7 @@
 package com.arpit.saathi;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -10,11 +11,13 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
 import java.util.List;
 
 public class SettingsActivity extends Activity {
-    private EditText key, modelSort, modelResearch, profile, digestHour;
-    private CheckBox wifiOnly;
+    private EditText key, keyGroq, keyOpenRouter, modelSort, modelResearch, modelGroq, modelOpenRouter, profile,
+            digestHour;
+    private CheckBox wifiOnly, lock;
     private TextView assistStatus, testResult;
 
     @Override
@@ -22,25 +25,36 @@ public class SettingsActivity extends Activity {
         super.onCreate(b);
         setContentView(R.layout.activity_settings);
         key = findViewById(R.id.key);
+        keyGroq = findViewById(R.id.keyGroq);
+        keyOpenRouter = findViewById(R.id.keyOpenRouter);
         modelSort = findViewById(R.id.modelSort);
         modelResearch = findViewById(R.id.modelResearch);
+        modelGroq = findViewById(R.id.modelGroq);
+        modelOpenRouter = findViewById(R.id.modelOpenRouter);
         profile = findViewById(R.id.profile);
         digestHour = findViewById(R.id.digestHour);
         wifiOnly = findViewById(R.id.wifiOnly);
+        lock = findViewById(R.id.lock);
         assistStatus = findViewById(R.id.assistStatus);
         testResult = findViewById(R.id.testResult);
 
         key.setText(Prefs.key(this));
+        keyGroq.setText(Prefs.groqKey(this));
+        keyOpenRouter.setText(Prefs.openRouterKey(this));
         modelSort.setText(Prefs.modelSort(this));
         modelResearch.setText(Prefs.modelResearch(this));
-        profile.setText(Prefs.profile(this));
+        modelGroq.setText(Prefs.modelGroq(this));
+        modelOpenRouter.setText(Prefs.modelOpenRouter(this));
+        profile.setText(Prefs.sp(this).getString("profile", ""));
         digestHour.setText(String.valueOf(Prefs.digestHour(this)));
         wifiOnly.setChecked(Prefs.wifiOnly(this));
+        lock.setChecked(Prefs.lock(this));
 
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
         findViewById(R.id.btnAssist).setOnClickListener(v -> openAssistSettings());
         findViewById(R.id.btnGetKey).setOnClickListener(v -> open("https://aistudio.google.com/apikey"));
         findViewById(R.id.btnTest).setOnClickListener(v -> test());
+        findViewById(R.id.btnErase).setOnClickListener(v -> confirmErase());
     }
 
     @Override
@@ -61,20 +75,30 @@ public class SettingsActivity extends Activity {
         save();
     }
 
+    private static String s(EditText e) {
+        return e.getText().toString().trim();
+    }
+
     private void save() {
         int hour = 20;
         try {
-            hour = Math.max(0, Math.min(23, Integer.parseInt(digestHour.getText().toString().trim())));
+            hour = Math.max(0, Math.min(23, Integer.parseInt(s(digestHour))));
         } catch (Exception ignored) {
         }
+        Prefs.setSecret(this, "key", s(key));
+        Prefs.setSecret(this, "groq", s(keyGroq));
+        Prefs.setSecret(this, "openrouter", s(keyOpenRouter));
         Prefs.sp(this).edit()
-                .putString("key", key.getText().toString().trim())
-                .putString("modelSort", modelSort.getText().toString().trim())
-                .putString("modelResearch", modelResearch.getText().toString().trim())
-                .putString("profile", profile.getText().toString().trim())
+                .putString("modelSort", s(modelSort))
+                .putString("modelResearch", s(modelResearch))
+                .putString("modelGroq", s(modelGroq))
+                .putString("modelOpenRouter", s(modelOpenRouter))
+                .putString("profile", s(profile))
                 .putInt("digestHour", hour)
                 .putBoolean("wifiOnly", wifiOnly.isChecked())
+                .putBoolean("lock", lock.isChecked())
                 .apply();
+        if (lock.isChecked()) App.unlocked = true; // you are already in; lock from the next time
         Reminders.scheduleDigest(this);
         ProcessJob.kick(this, ProcessJob.JOB_SORT);
     }
@@ -100,42 +124,84 @@ public class SettingsActivity extends Activity {
         }
     }
 
+    private void confirmErase() {
+        new AlertDialog.Builder(this)
+                .setTitle("Erase everything?")
+                .setMessage("All saved items, screenshots, notes and tasks are deleted from this phone. "
+                        + "Your keys and settings stay. This can't be undone.")
+                .setPositiveButton("Erase", (d, w) -> {
+                    Reminders.cancelAll(this);
+                    Db.get(this).eraseAll();
+                    File[] shots = new File(getFilesDir(), "shots").listFiles();
+                    if (shots != null) for (File f : shots) f.delete();
+                    Prefs.sp(this).edit().remove("lastCapId").remove("lastCapAt").remove("lastCapSrc").apply();
+                    Toast.makeText(this, "Erased", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void test() {
-        final String k = key.getText().toString().trim();
-        final String sort = modelSort.getText().toString().trim();
-        final String research = modelResearch.getText().toString().trim();
-        if (k.isEmpty()) {
+        final String k = s(key), kg = s(keyGroq), ko = s(keyOpenRouter);
+        final String sort = strip(s(modelSort)), research = strip(s(modelResearch));
+        final String mg = s(modelGroq), mo = s(modelOpenRouter);
+        if (k.isEmpty() && kg.isEmpty() && ko.isEmpty()) {
             show("Paste a key first.", false);
             return;
         }
         show("Checking…", true);
         new Thread(() -> {
-            String msg;
-            boolean ok = false;
-            try {
-                List<String> models = Gemini.listModels(k);
-                StringBuilder sb = new StringBuilder("Key works. ");
-                boolean a = sort.isEmpty() || models.contains(strip(sort));
-                boolean r = research.isEmpty() || models.contains(strip(research));
-                if (a && r) {
-                    sb.append("Both models are available.");
-                    ok = true;
-                } else {
-                    sb.append("But this key can't use: ").append(a ? "" : sort + " ").append(r ? "" : research)
-                            .append("\nFlash models you can use: ");
-                    int n = 0;
-                    for (String m : models) {
-                        if (m.contains("flash") && n++ < 10) sb.append(m).append(", ");
+            StringBuilder sb = new StringBuilder();
+            boolean ok = true;
+            if (!k.isEmpty()) {
+                try {
+                    List<String> models = Gemini.listModels(k);
+                    boolean a = sort.isEmpty() || models.contains(sort);
+                    boolean r = research.isEmpty() || models.contains(research);
+                    if (a && r) {
+                        sb.append("Gemini: works.\n");
+                    } else {
+                        ok = false;
+                        sb.append("Gemini: key works, but it can't use ").append(a ? "" : sort + " ")
+                                .append(r ? "" : research).append(". Flash models you can use: ")
+                                .append(some(models, "flash")).append("\n");
                     }
+                } catch (Exception e) {
+                    ok = false;
+                    sb.append("Gemini: ").append(e.getMessage()).append("\n");
                 }
-                msg = sb.toString();
-            } catch (Exception e) {
-                msg = "That didn't work: " + e.getMessage();
             }
-            final String fMsg = msg;
+            ok &= check(sb, "Groq", Llm.GROQ, kg, mg);
+            ok &= check(sb, "OpenRouter", Llm.OPENROUTER, ko, mo);
+            final String msg = sb.toString().trim();
             final boolean fOk = ok;
-            runOnUiThread(() -> show(fMsg, fOk));
+            runOnUiThread(() -> show(msg, fOk));
         }).start();
+    }
+
+    private static boolean check(StringBuilder sb, String name, String base, String key, String model) {
+        if (key.isEmpty()) return true;
+        try {
+            List<String> models = Llm.models(base, key);
+            if (model.isEmpty() || models.contains(model)) {
+                sb.append(name).append(": works.\n");
+                return true;
+            }
+            sb.append(name).append(": key works, but there is no model called ").append(model)
+                    .append(". Some you can use: ").append(some(models, "")).append("\n");
+        } catch (Exception e) {
+            sb.append(name).append(": ").append(e.getMessage()).append("\n");
+        }
+        return false;
+    }
+
+    private static String some(List<String> models, String containing) {
+        StringBuilder sb = new StringBuilder();
+        int n = 0;
+        for (String m : models) {
+            if (m.contains(containing) && n++ < 8) sb.append(n > 1 ? ", " : "").append(m);
+        }
+        return sb.toString();
     }
 
     private static String strip(String m) {

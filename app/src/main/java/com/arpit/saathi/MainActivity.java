@@ -28,8 +28,9 @@ import java.util.List;
 
 /** The inbox: everything captured, as cards, soonest deadline first. */
 public class MainActivity extends Activity {
-    private static final String[] FILTERS = {null, "internship", "algorithm", "tool", "other"};
-    private static final String[] FILTER_LABELS = {"All", "Opportunities", "Algorithms", "Tools", "Other"};
+    private static final String[] FILTERS = {null, "internship", "govt", "algorithm", "tool", "note", "other"};
+    private static final String[] FILTER_LABELS = {"All", "Opportunities", "Govt & exams", "Algorithms", "Tools",
+            "Notes", "Other"};
 
     private final List<Item> items = new ArrayList<>();
     private final Runnable onChange = this::reload;
@@ -55,6 +56,22 @@ public class MainActivity extends Activity {
         findViewById(R.id.btnSettings).setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
         findViewById(R.id.btnAdd).setOnClickListener(v -> addDialog());
+        findViewById(R.id.btnTasks).setOnClickListener(v -> startActivity(new Intent(this, TasksActivity.class)));
+        findViewById(R.id.btnAsk).setOnClickListener(v -> startActivity(new Intent(this, AskActivity.class)));
+        list.setOnItemLongClickListener((p, v, pos, id) -> {
+            final Item it = items.get(pos);
+            new AlertDialog.Builder(this)
+                    .setMessage("Delete \"" + (it.title.isEmpty() ? "this item" : it.title) + "\"?")
+                    .setPositiveButton("Delete", (d, w) -> Capture.deleteItem(this, it))
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return true;
+        });
+
+        TextView brand = findViewById(R.id.brand);
+        brand.getPaint().setShader(new android.graphics.LinearGradient(0, 0,
+                brand.getPaint().measureText("Saathi"), 0, getColor(R.color.accent), getColor(R.color.accent2),
+                android.graphics.Shader.TileMode.CLAMP));
         banner.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 
         buildChips();
@@ -125,9 +142,12 @@ public class MainActivity extends Activity {
             if (left != Ui.NO_DATE && left >= 0 && left <= 7) dueSoon++;
         }
         subtitle.setText(open + " open" + (dueSoon > 0 ? "  ·  " + dueSoon + " due this week" : ""));
+        int openTasks = 0;
+        for (Task t : Db.get(this).tasks()) if (!t.done) openTasks++;
+        ((TextView) findViewById(R.id.btnTasks)).setText(openTasks > 0 ? "Tasks · " + openTasks : "Tasks");
 
         String msg = null;
-        if (Prefs.key(this).isEmpty()) {
+        if (!Llm.any(this)) {
             msg = "Add your free Gemini key in Settings so Saathi can sort and research what you save. Tap here.";
         } else if (!isAssistant(this)) {
             msg = "Make Saathi your digital assistant to capture any screen with a long-press. Tap here. "
@@ -140,6 +160,7 @@ public class MainActivity extends Activity {
         if (items.isEmpty()) {
             empty.setText(filter == 0
                     ? "Nothing saved yet.\n\nOn a post you want to keep, call the assistant or use Share → Saathi."
+                    + "\n\nHold a card to delete it."
                     : "Nothing in this group yet.");
         }
     }
@@ -157,11 +178,16 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle("Add to Saathi")
                 .setView(wrap)
-                .setPositiveButton("Save", (d, w) -> {
+                .setPositiveButton("Save & research", (d, w) -> {
                     final String s = in.getText().toString().trim();
                     if (!s.isEmpty()) {
-                        new Thread(() -> Capture.save(getApplicationContext(), s, null, "manual", null)).start();
+                        new Thread(() -> Capture.save(getApplicationContext(), s, null, "manual", null, false))
+                                .start();
                     }
+                })
+                .setNeutralButton("Just remember it", (d, w) -> {
+                    String s = in.getText().toString().trim();
+                    if (!s.isEmpty()) Db.get(this).insertNote(s);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -182,7 +208,7 @@ public class MainActivity extends Activity {
             Ui.pill((TextView) v.findViewById(R.id.pill), it.type);
 
             if (it.state == 0) {
-                title.setText(Prefs.key(MainActivity.this).isEmpty() ? "Waiting for your Gemini key" : "Sorting…");
+                title.setText(!Llm.any(MainActivity.this) ? "Waiting for an API key" : "Sorting…");
                 summary.setText(preview(it));
             } else if (it.state == -1) {
                 title.setText("Couldn't sort this one");
@@ -213,7 +239,8 @@ public class MainActivity extends Activity {
                 return s.length() > 140 ? s.substring(0, 140) + "…" : s;
             }
             String from = Ui.appName(it.source);
-            return from.isEmpty() ? "Screenshot" : "Screenshot from " + from;
+            int n = it.images().size();
+            return (n > 1 ? n + " screenshots" : "Screenshot") + (from.isEmpty() ? "" : " from " + from);
         }
     }
 }

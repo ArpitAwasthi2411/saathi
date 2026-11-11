@@ -29,8 +29,11 @@ public final class Ui {
     public static int typeColor(Context c, String type) {
         switch (type == null ? "" : type) {
             case "internship": return c.getColor(R.color.teal);
+            case "govt": return c.getColor(R.color.orange);
             case "algorithm": return c.getColor(R.color.violet);
             case "tool": return c.getColor(R.color.amber);
+            case "note": return c.getColor(R.color.slate);
+            case "pending": return c.getColor(R.color.accent);
             default: return c.getColor(R.color.grey);
         }
     }
@@ -38,6 +41,8 @@ public final class Ui {
     public static String typeLabel(String type) {
         switch (type == null ? "" : type) {
             case "internship": return "OPPORTUNITY";
+            case "govt": return "GOVT / EXAM";
+            case "note": return "NOTE";
             case "algorithm": return "ALGORITHM";
             case "tool": return "TOOL";
             case "pending": return "NEW";
@@ -105,6 +110,17 @@ public final class Ui {
         Calendar d = parseDay(ymd);
         if (d == null) return "";
         return new SimpleDateFormat("EEE, d MMM yyyy", Locale.US).format(d.getTime());
+    }
+
+    /** "Today, 5:30 PM", "Tomorrow, 9:00 AM" or "Fri 14 Nov, 5:30 PM". */
+    public static String when(long millis) {
+        if (millis <= 0) return "";
+        String time = new SimpleDateFormat("h:mm a", Locale.US).format(new Date(millis));
+        String day = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date(millis));
+        long n = daysLeft(day);
+        if (n == 0) return "Today, " + time;
+        if (n == 1) return "Tomorrow, " + time;
+        return new SimpleDateFormat("EEE d MMM", Locale.US).format(new Date(millis)) + ", " + time;
     }
 
     public static String appName(String pkg) {

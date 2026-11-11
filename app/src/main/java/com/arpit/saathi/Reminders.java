@@ -4,12 +4,14 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 
 import java.util.Calendar;
 
-/** Deadline alerts 7 days before, 2 days before and on the day (9 am), plus the daily digest. */
+/** Deadline alerts (7 days, 2 days, on the day at 9 am), task reminders at their set time, daily digest. */
 public final class Reminders {
     static final int[] OFFSETS = {7, 2, 0};
+    private static final int TASK_BASE = 1_000_000;
 
     private Reminders() {}
 
@@ -41,6 +43,27 @@ public final class Reminders {
         }
     }
 
+    public static void scheduleTask(Context c, Task t) {
+        if (t == null) return;
+        cancelTask(c, t.id);
+        if (t.done || t.due <= System.currentTimeMillis()) return;
+        AlarmManager am = c.getSystemService(AlarmManager.class);
+        PendingIntent p = pi(c, "task", t.id, 0, (int) (TASK_BASE + t.id));
+        try {
+            // on-the-minute when the phone allows it, otherwise within a few minutes
+            if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t.due, p);
+                return;
+            }
+        } catch (SecurityException ignored) {
+        }
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t.due, p);
+    }
+
+    public static void cancelTask(Context c, long id) {
+        c.getSystemService(AlarmManager.class).cancel(pi(c, "task", id, 0, (int) (TASK_BASE + id)));
+    }
+
     public static void scheduleDigest(Context c) {
         Calendar t = Calendar.getInstance();
         t.set(Calendar.HOUR_OF_DAY, Prefs.digestHour(c));
@@ -54,6 +77,12 @@ public final class Reminders {
 
     public static void rescheduleAll(Context c) {
         for (Item it : Db.get(c).all()) schedule(c, it);
+        for (Task t : Db.get(c).tasks()) scheduleTask(c, t);
         scheduleDigest(c);
+    }
+
+    public static void cancelAll(Context c) {
+        for (Item it : Db.get(c).all()) cancel(c, it.id);
+        for (Task t : Db.get(c).tasks()) cancelTask(c, t.id);
     }
 }
