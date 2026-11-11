@@ -21,6 +21,8 @@ public final class Gemini {
         public String text = "";
         /** {title, url} pairs from Google Search grounding. */
         public List<String[]> sources = new ArrayList<>();
+        /** How many web searches the model ran for this answer. */
+        public int searches;
     }
 
     private Gemini() {}
@@ -57,6 +59,8 @@ public final class Gemini {
             throw new IOException("Empty answer (" + cand.optString("finishReason", "no reason given") + ")");
         }
         JSONObject gm = cand.optJSONObject("groundingMetadata");
+        JSONArray queries = gm == null ? null : gm.optJSONArray("webSearchQueries");
+        if (queries != null) r.searches = queries.length();
         JSONArray chunks = gm == null ? null : gm.optJSONArray("groundingChunks");
         if (chunks != null) {
             for (int i = 0; i < chunks.length() && r.sources.size() < 8; i++) {
@@ -66,6 +70,7 @@ public final class Gemini {
                 if (!uri.isEmpty()) r.sources.add(new String[]{web.optString("title", uri), uri});
             }
         }
+        if (r.searches == 0 && !r.sources.isEmpty()) r.searches = 1;
         return r;
     }
 

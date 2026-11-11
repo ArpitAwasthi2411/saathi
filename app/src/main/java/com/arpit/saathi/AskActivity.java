@@ -9,10 +9,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** Ask questions about what you saved, or ask to be reminded of something. */
 public class AskActivity extends Activity {
@@ -71,7 +69,8 @@ public class AskActivity extends Activity {
         new Thread(() -> {
             String out;
             try {
-                out = handle(Llm.chat(getApplicationContext(), Memory.prompt(getApplicationContext(), q, past)));
+                out = Memory.applyTasks(getApplicationContext(),
+                        Llm.chat(getApplicationContext(), Memory.prompt(getApplicationContext(), q, past)));
             } catch (Exception e) {
                 out = "That didn't work: " + (e.getMessage() == null ? "no connection?" : e.getMessage());
             }
@@ -83,41 +82,5 @@ public class AskActivity extends Activity {
                 scroll.post(() -> scroll.fullScroll(ScrollView.FOCUS_DOWN));
             });
         }, "saathi-ask").start();
-    }
-
-    /** Pulls "TASK: title | time" lines out of the answer and turns them into real tasks. */
-    private String handle(String reply) {
-        StringBuilder text = new StringBuilder(), added = new StringBuilder();
-        for (String line : reply.replace("**", "").split("\n")) {
-            String t = line.trim();
-            if (!t.toUpperCase(Locale.US).startsWith("TASK:")) {
-                text.append(line).append("\n");
-                continue;
-            }
-            String body = t.substring(5).trim();
-            int bar = body.lastIndexOf('|');
-            String title = (bar >= 0 ? body.substring(0, bar) : body).trim();
-            if (title.isEmpty()) continue;
-            if (title.length() > 200) title = title.substring(0, 200);
-            long due = 0;
-            if (bar >= 0) {
-                try {
-                    SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-                    f.setLenient(false);
-                    due = f.parse(body.substring(bar + 1).trim()).getTime();
-                } catch (Exception ignored) {
-                }
-            }
-            long id = Db.get(this).addTask(title, due, 0);
-            Reminders.scheduleTask(this, Db.get(this).task(id));
-            added.append("\n✓ Task added: ").append(title);
-            if (due > 0) {
-                added.append(" (").append(Ui.when(due)).append(due < System.currentTimeMillis()
-                        ? ", already past, so no reminder" : "").append(")");
-            } else {
-                added.append(" (no reminder time)");
-            }
-        }
-        return (text.toString().trim() + (added.length() > 0 ? "\n" + added : "")).trim();
     }
 }

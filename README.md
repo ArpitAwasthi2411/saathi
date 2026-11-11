@@ -28,6 +28,8 @@ Every later push builds a new APK that installs over the old one and keeps your 
 - Sorts into opportunities, government notices and exams, algorithms, tools and notes; researches each
   in the background; reminds you before deadlines.
 - Tasks with reminders, and an Ask screen that answers from what you saved.
+- Team: give a mission; a master agent splits it across specialist agents (Scout, Scholar, Analyst,
+  Writer, Planner), they work in the background, and you get a report you can save as a PDF.
 - Models: Gemini, with Groq and OpenRouter (open-source models) as optional backups.
 
 ## Privacy
@@ -47,4 +49,5 @@ Every later push builds a new APK that installs over the old one and keeps your 
 - `Llm.java`, `Gemini.java` — model providers
 - `Memory.java`, `AskActivity.java` — answering from saved items
 - `Reminders.java`, `AlarmReceiver.java` — deadline alerts, task reminders, daily digest
+- `Team.java`, `TeamRunner.java`, `Pdf.java` — agent team, mission runner, PDF reports
 - `Secure.java`, `LockActivity.java` — key encryption and app lock

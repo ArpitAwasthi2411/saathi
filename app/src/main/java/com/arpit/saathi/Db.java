@@ -23,7 +23,7 @@ public class Db extends SQLiteOpenHelper {
     }
 
     private Db(Context c) {
-        super(c, "saathi.db", null, 2);
+        super(c, "saathi.db", null, 3);
     }
 
     @Override
@@ -35,6 +35,7 @@ public class Db extends SQLiteOpenHelper {
                 + "image TEXT, research TEXT, sources TEXT, error TEXT, attempts INTEGER DEFAULT 0, "
                 + "rev INTEGER DEFAULT 0)");
         createTasks(db);
+        createTeam(db);
     }
 
     @Override
@@ -43,6 +44,16 @@ public class Db extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE items ADD COLUMN rev INTEGER DEFAULT 0");
             createTasks(db);
         }
+        if (oldVersion < 3) createTeam(db);
+    }
+
+    private void createTeam(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS missions (id INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER, "
+                + "finished INTEGER DEFAULT 0, kind TEXT, goal TEXT, title TEXT, status TEXT, report TEXT, "
+                + "error TEXT)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS steps (id INTEGER PRIMARY KEY AUTOINCREMENT, mission_id INTEGER, "
+                + "idx INTEGER, agent TEXT, task TEXT, status TEXT, output TEXT, sources TEXT, "
+                + "searches INTEGER DEFAULT 0)");
     }
 
     private void createTasks(SQLiteDatabase db) {
@@ -204,9 +215,115 @@ public class Db extends SQLiteOpenHelper {
         return out;
     }
 
+    // ---------------------------------------------------------------- team missions
+
+    public long addMission(String kind, String goal) {
+        ContentValues v = new ContentValues();
+        v.put("created", System.currentTimeMillis());
+        v.put("kind", kind);
+        v.put("goal", goal);
+        v.put("title", "");
+        v.put("status", "queued");
+        v.put("report", "");
+        v.put("error", "");
+        long id = getWritableDatabase().insert("missions", null, v);
+        changed();
+        return id;
+    }
+
+    public void setMission(long id, ContentValues v) {
+        getWritableDatabase().update("missions", v, "id=?", new String[]{String.valueOf(id)});
+        changed();
+    }
+
+    public void deleteMission(long id) {
+        getWritableDatabase().delete("steps", "mission_id=?", new String[]{String.valueOf(id)});
+        getWritableDatabase().delete("missions", "id=?", new String[]{String.valueOf(id)});
+        changed();
+    }
+
+    public Team.Mission mission(long id) {
+        List<Team.Mission> l = missions("SELECT * FROM missions WHERE id=" + id);
+        return l.isEmpty() ? null : l.get(0);
+    }
+
+    /** Newest first. */
+    public List<Team.Mission> missions() {
+        return missions("SELECT * FROM missions ORDER BY created DESC");
+    }
+
+    private List<Team.Mission> missions(String sql) {
+        List<Team.Mission> out = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery(sql, new String[0])) {
+            while (c.moveToNext()) {
+                Team.Mission m = new Team.Mission();
+                m.id = c.getLong(c.getColumnIndexOrThrow("id"));
+                m.created = c.getLong(c.getColumnIndexOrThrow("created"));
+                m.finished = c.getLong(c.getColumnIndexOrThrow("finished"));
+                m.kind = str(c, "kind");
+                m.goal = str(c, "goal");
+                m.title = str(c, "title");
+                m.status = str(c, "status");
+                m.report = str(c, "report");
+                m.error = str(c, "error");
+                out.add(m);
+            }
+        }
+        return out;
+    }
+
+    public long addStep(long missionId, int idx, String agent, String task) {
+        ContentValues v = new ContentValues();
+        v.put("mission_id", missionId);
+        v.put("idx", idx);
+        v.put("agent", agent);
+        v.put("task", task);
+        v.put("status", "wait");
+        v.put("output", "");
+        v.put("sources", "");
+        long id = getWritableDatabase().insert("steps", null, v);
+        changed();
+        return id;
+    }
+
+    public void setStep(long id, ContentValues v) {
+        getWritableDatabase().update("steps", v, "id=?", new String[]{String.valueOf(id)});
+        changed();
+    }
+
+    /** One mission's steps in order, or every step when missionId is 0. */
+    public List<Team.Step> steps(long missionId) {
+        List<Team.Step> out = new ArrayList<>();
+        String sql = "SELECT * FROM steps" + (missionId > 0 ? " WHERE mission_id=" + missionId : "")
+                + " ORDER BY mission_id, idx";
+        try (Cursor c = getReadableDatabase().rawQuery(sql, new String[0])) {
+            while (c.moveToNext()) {
+                Team.Step s = new Team.Step();
+                s.id = c.getLong(c.getColumnIndexOrThrow("id"));
+                s.missionId = c.getLong(c.getColumnIndexOrThrow("mission_id"));
+                s.idx = c.getInt(c.getColumnIndexOrThrow("idx"));
+                s.searches = c.getInt(c.getColumnIndexOrThrow("searches"));
+                s.agent = str(c, "agent");
+                s.task = str(c, "task");
+                s.status = str(c, "status");
+                s.output = str(c, "output");
+                s.sources = str(c, "sources");
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    private static String str(Cursor c, String col) {
+        String v = c.getString(c.getColumnIndexOrThrow(col));
+        return v == null ? "" : v;
+    }
+
     public void eraseAll() {
         getWritableDatabase().delete("items", null, null);
         getWritableDatabase().delete("tasks", null, null);
+        getWritableDatabase().delete("steps", null, null);
+        getWritableDatabase().delete("missions", null, null);
         changed();
     }
 }

@@ -239,7 +239,7 @@ public final class Processor {
     }
 
     /** Models sometimes wrap JSON in a code fence or add a sentence; keep only the object. */
-    private static String extractJson(String s) {
+    static String extractJson(String s) {
         int a = s.indexOf('{'), b = s.lastIndexOf('}');
         if (a < 0 || b <= a) throw new IllegalStateException("Model did not return JSON");
         return s.substring(a, b + 1);

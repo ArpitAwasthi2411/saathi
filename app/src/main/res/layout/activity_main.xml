@@ -128,16 +128,25 @@
             android:id="@+id/btnTasks"
             style="@style/BtnGhost"
             android:layout_width="0dp"
-            android:layout_marginEnd="5dp"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:text="Tasks" />
+
+        <TextView
+            android:id="@+id/btnTeam"
+            style="@style/BtnGhost"
+            android:layout_width="0dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:layout_weight="1"
+            android:text="Team" />
 
         <TextView
             android:id="@+id/btnAsk"
             style="@style/Btn"
             android:layout_width="0dp"
-            android:layout_marginStart="5dp"
+            android:layout_marginStart="4dp"
             android:layout_weight="1"
-            android:text="Ask Saathi" />
+            android:text="Ask" />
     </LinearLayout>
 </LinearLayout>

@@ -42,7 +42,21 @@ public class DetailActivity extends Activity {
         findViewById(R.id.btnRetry).setOnClickListener(v -> retry());
         findViewById(R.id.btnCal).setOnClickListener(v -> addToCalendar());
         findViewById(R.id.btnTask).setOnClickListener(v -> addTask());
-        findViewById(R.id.btnShare).setOnClickListener(v -> share());
+        findViewById(R.id.btnShare).setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setItems(new CharSequence[]{"Share as text", "Save as PDF"}, (d, which) -> {
+                    if (which == 0) share();
+                    else if (it != null) Pdf.askWhere(this, it.title.isEmpty() ? "item" : it.title, 31);
+                })
+                .show());
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 31 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            final Item snap = Db.get(this).item(id);
+            if (snap != null) Pdf.save(this, data.getData(), () -> Pdf.ofItem(snap));
+        }
     }
 
     @Override

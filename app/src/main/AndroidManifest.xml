@@ -43,6 +43,11 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".TeamActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".MissionActivity" android:exported="false" />
+        <activity
             android:name=".LockActivity"
             android:excludeFromRecents="true"
             android:exported="false" />

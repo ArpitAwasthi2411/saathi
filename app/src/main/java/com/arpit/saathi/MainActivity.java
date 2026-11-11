@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
                 startActivity(new Intent(this, SettingsActivity.class)));
         findViewById(R.id.btnAdd).setOnClickListener(v -> addDialog());
         findViewById(R.id.btnTasks).setOnClickListener(v -> startActivity(new Intent(this, TasksActivity.class)));
+        findViewById(R.id.btnTeam).setOnClickListener(v -> startActivity(new Intent(this, TeamActivity.class)));
         findViewById(R.id.btnAsk).setOnClickListener(v -> startActivity(new Intent(this, AskActivity.class)));
         list.setOnItemLongClickListener((p, v, pos, id) -> {
             final Item it = items.get(pos);
@@ -89,6 +90,7 @@ public class MainActivity extends Activity {
         reload();
         // pick up anything that was waiting for a key or a network
         ProcessJob.kick(this, ProcessJob.JOB_SORT);
+        ProcessJob.kick(this, ProcessJob.JOB_TEAM);
     }
 
     @Override

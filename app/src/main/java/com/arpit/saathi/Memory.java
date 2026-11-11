@@ -104,7 +104,66 @@ final class Memory {
         return out;
     }
 
-    private static String cut(String s, int max) {
+    /** A compact view of what the user has saved, for team agents: an index plus the closest matches. */
+    static String saved(Context c, String about) {
+        List<Item> items = Db.get(c).all();
+        StringBuilder p = new StringBuilder("THE FOUNDER'S SAVED ITEMS (id | type | title | deadline | summary):\n");
+        int n = 0;
+        for (Item it : items) {
+            if (it.state < 1 || n++ >= 40) continue;
+            p.append("#").append(it.id).append(" | ").append(it.type).append(" | ").append(it.title).append(" | ")
+                    .append(it.deadline.isEmpty() ? "no deadline" : it.deadline).append(" | ")
+                    .append(cut(it.summary.replace('\n', ' '), 140)).append("\n");
+        }
+        if (n == 0) return "THE FOUNDER HAS NOT SAVED ANYTHING YET.\n";
+        for (Item it : relevant(items, about)) {
+            p.append("--- #").append(it.id).append(" ").append(it.title).append("\n")
+                    .append(cut("note".equals(it.type) ? it.raw : it.summary, 800)).append("\n");
+            if (!it.research.isEmpty()) p.append(cut(it.research, 1200)).append("\n");
+            if (!it.links.isEmpty()) p.append("Links: ").append(it.links.replace('\n', ' ')).append("\n");
+        }
+        return p.toString();
+    }
+
+    /** Pulls "TASK: title | time" lines out of a model reply, creates those tasks, returns the rest. */
+    static String applyTasks(Context c, String reply) {
+        StringBuilder text = new StringBuilder(), added = new StringBuilder();
+        int made = 0;
+        for (String line : reply.replace("**", "").split("\n")) {
+            String t = line.trim();
+            if (!t.toUpperCase(Locale.US).startsWith("TASK:")) {
+                text.append(line).append("\n");
+                continue;
+            }
+            String body = t.substring(5).trim();
+            int bar = body.lastIndexOf('|');
+            String title = (bar >= 0 ? body.substring(0, bar) : body).trim();
+            if (title.isEmpty() || made >= 6) continue;
+            if (title.length() > 200) title = title.substring(0, 200);
+            long due = 0;
+            if (bar >= 0) {
+                try {
+                    SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+                    f.setLenient(false);
+                    due = f.parse(body.substring(bar + 1).trim()).getTime();
+                } catch (Exception ignored) {
+                }
+            }
+            long id = Db.get(c).addTask(title, due, 0);
+            Reminders.scheduleTask(c, Db.get(c).task(id));
+            made++;
+            added.append("\n✓ Task added: ").append(title);
+            if (due > 0) {
+                added.append(" (").append(Ui.when(due)).append(due < System.currentTimeMillis()
+                        ? ", already past, so no reminder" : "").append(")");
+            } else {
+                added.append(" (no reminder time)");
+            }
+        }
+        return (text.toString().trim() + (added.length() > 0 ? "\n" + added : "")).trim();
+    }
+
+    static String cut(String s, int max) {
         return s.length() > max ? s.substring(0, max) + "…" : s;
     }
 }
