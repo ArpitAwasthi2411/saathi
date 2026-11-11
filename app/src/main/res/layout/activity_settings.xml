@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            android:tint="@color/text" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="Settings"
+            android:textColor="@color/text"
+            android:textSize="20sp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="48dp">
+
+            <TextView
+                style="@style/Label"
+                android:layout_marginTop="8dp"
+                android:text="1 · Capture from any screen" />
+
+            <TextView
+                android:id="@+id/assistStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:textColor="@color/sub"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/btnAssist"
+                style="@style/BtnGhost"
+                android:layout_marginTop="12dp"
+                android:text="Open assistant settings" />
+
+            <TextView
+                style="@style/Label"
+                android:text="2 · Gemini API key" />
+
+            <EditText
+                android:id="@+id/key"
+                style="@style/Input"
+                android:hint="Paste your key"
+                android:importantForAutofill="no"
+                android:inputType="textVisiblePassword"
+                android:singleLine="true" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnGetKey"
+                    style="@style/BtnGhost"
+                    android:layout_width="0dp"
+                    android:layout_marginEnd="5dp"
+                    android:layout_weight="1"
+                    android:text="Get a free key" />
+
+                <TextView
+                    android:id="@+id/btnTest"
+                    style="@style/Btn"
+                    android:layout_width="0dp"
+                    android:layout_marginStart="5dp"
+                    android:layout_weight="1"
+                    android:text="Test key" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/testResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="3dp"
+                android:textColor="@color/sub"
+                android:textIsSelectable="true"
+                android:textSize="13sp" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Model for sorting" />
+
+            <EditText
+                android:id="@+id/modelSort"
+                style="@style/Input"
+                android:importantForAutofill="no"
+                android:inputType="textNoSuggestions"
+                android:singleLine="true" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Model for research (needs free Google Search)" />
+
+            <EditText
+                android:id="@+id/modelResearch"
+                style="@style/Input"
+                android:importantForAutofill="no"
+                android:inputType="textNoSuggestions"
+                android:singleLine="true" />
+
+            <TextView
+                style="@style/Label"
+                android:text="About you (used to score fit)" />
+
+            <EditText
+                android:id="@+id/profile"
+                style="@style/Input"
+                android:gravity="top"
+                android:importantForAutofill="no"
+                android:inputType="textMultiLine|textCapSentences"
+                android:lineSpacingExtra="3dp"
+                android:minLines="5" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Daily digest hour (0-23)" />
+
+            <EditText
+                android:id="@+id/digestHour"
+                style="@style/Input"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLength="2"
+                android:singleLine="true" />
+
+            <CheckBox
+                android:id="@+id/wifiOnly"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Do the deep research only on Wi-Fi"
+                android:textColor="@color/text"
+                android:textSize="15sp" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

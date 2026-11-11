@@ -1,0 +1,37 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.arpit.saathi'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.arpit.saathi'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // One fixed key so every build can install over the previous one without losing data.
+    signingConfigs {
+        shared {
+            storeFile file('saathi.keystore')
+            storePassword 'saathi-local'
+            keyAlias 'saathi'
+            keyPassword 'saathi-local'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.shared }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
