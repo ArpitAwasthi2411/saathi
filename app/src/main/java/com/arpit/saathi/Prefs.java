@@ -8,8 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class Prefs {
     /** Gemini model lists: the first one the key can use right now wins, the rest are fallbacks. */
-    public static final String DEFAULT_SORT = "gemini-3.5-flash-lite, gemini-3.6-flash, gemini-3.1-flash-lite";
-    public static final String DEFAULT_THINK = "gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite";
+    public static final String DEFAULT_SORT = "gemini-3.5-flash-lite, gemini-3.6-flash, gemini-3.1-flash-lite, gemini-2.5-flash-lite";
+    public static final String DEFAULT_THINK = "gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite, gemini-2.5-flash";
     /** The only family with free built-in Google Search; Google retires it on 1 Dec 2026. */
     public static final String GROUNDED_MODEL = "gemini-2.5-flash";
     public static final String DEFAULT_GROQ = "openai/gpt-oss-120b";

@@ -30,6 +30,8 @@ Every later push builds a new APK that installs over the old one and keeps your 
 - Tasks with reminders, and an Ask screen that answers from what you saved.
 - Team: give a mission; a master agent splits it across specialist agents (Scout, Scholar, Analyst,
   Writer, Planner), they work in the background, and you get a report you can save as a PDF.
+- Research is source-bound: the app runs the web searches (Tavily key) and models may only report
+  what the fetched pages say, with the page attached. Without search it says so instead of guessing.
 - Models: Gemini, with Groq and OpenRouter (open-source models) as optional backups.
 
 ## Privacy
