@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.SpannableStringBuilder;
 import android.text.style.ForegroundColorSpan;
@@ -13,6 +14,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -91,6 +93,7 @@ public class MissionActivity extends Activity {
             return;
         }
         List<Team.Step> steps = Db.get(this).steps(id);
+        List<Team.Finding> found = Db.get(this).findings(id);
         int searches = 0;
         for (Team.Step s : steps) searches += s.searches;
 
@@ -98,19 +101,25 @@ public class MissionActivity extends Activity {
         ((TextView) findViewById(R.id.title)).setText(m.title.isEmpty() ? m.goal : m.title);
         TextView goal = findViewById(R.id.goal);
         goal.setVisibility("report".equals(m.kind) || m.title.isEmpty() ? View.GONE : View.VISIBLE);
-        goal.setText(m.goal);
+        goal.setText("You asked: " + m.goal);
         ((TextView) findViewById(R.id.meta)).setText(
                 new SimpleDateFormat("d MMM yyyy, h:mm a", Locale.US).format(new Date(m.created))
-                        + ("report".equals(m.kind) ? "" : "  ·  " + steps.size() + " agent tasks  ·  " + searches
-                        + " web searches"));
+                        + ("report".equals(m.kind) ? "" : "  ·  " + searches + " web searches  ·  "
+                        + found.size() + " sourced results"));
         findViewById(R.id.btnRetry).setVisibility("failed".equals(m.status) ? View.VISIBLE : View.GONE);
 
         int accent = getColor(R.color.accent);
         TextView report = findViewById(R.id.report);
         if (!m.report.isEmpty()) report.setText(format(m.report, accent));
-        else if ("failed".equals(m.status)) report.setText("This mission didn't finish: " + m.error);
+        else if ("failed".equals(m.status)) report.setText("This mission didn't finish.\n" + m.error);
         else if (steps.isEmpty()) report.setText("Chief is planning who does what…");
-        else report.setText("The team is working. The report appears here when everyone is done.");
+        else report.setText("The team is working. The summary appears here when everyone is done.");
+
+        findViewById(R.id.resultsLabel).setVisibility(found.isEmpty() ? View.GONE : View.VISIBLE);
+        LinearLayout results = findViewById(R.id.results);
+        results.removeAllViews();
+        int n = 0;
+        for (Team.Finding f : found) results.addView(findingCard(f, ++n));
 
         findViewById(R.id.stepsLabel).setVisibility(steps.isEmpty() ? View.GONE : View.VISIBLE);
         LinearLayout box = findViewById(R.id.steps);
@@ -118,8 +127,7 @@ public class MissionActivity extends Activity {
         for (Team.Step s : steps) box.addView(stepCard(s));
     }
 
-    private View stepCard(Team.Step s) {
-        int color = Team.agentColor(this, s.agent);
+    private LinearLayout card() {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundResource(R.drawable.bg_card);
@@ -129,47 +137,136 @@ public class MissionActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.bottomMargin = Ui.dp(this, 10);
         card.setLayoutParams(lp);
+        return card;
+    }
 
+    private TextView line(String text, float size, int color, int topDp) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        t.setLineSpacing(Ui.dp(this, 2), 1f);
+        t.setPadding(0, Ui.dp(this, topDp), 0, 0);
+        return t;
+    }
+
+    /** One sourced result: what it is, the facts from its page, how well it fits, and the page itself. */
+    private View findingCard(final Team.Finding f, int position) {
+        LinearLayout card = card();
+
+        StringBuilder top = new StringBuilder("#" + position);
+        if (f.fit >= 0) top.append("  ·  FIT ").append(f.fit).append("/100");
+        String due = Ui.dueLabel(f.deadline);
+        if (!due.isEmpty()) top.append("  ·  ").append(due.toUpperCase(Locale.US));
+        else if (!f.status.isEmpty()) top.append("  ·  ").append(f.status.toUpperCase(Locale.US));
+        TextView head = line(top.toString(), 11, f.deadline.isEmpty() ? getColor(R.color.accent)
+                : Ui.dueColor(this, f.deadline), 0);
+        head.setLetterSpacing(0.06f);
+        head.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        card.addView(head);
+
+        TextView title = line(f.title, 16, getColor(R.color.text), 6);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        title.setTextIsSelectable(true);
+        card.addView(title);
+        if (!f.what.isEmpty()) card.addView(line(f.what, 14, getColor(R.color.sub), 4));
+
+        SpannableStringBuilder facts = new SpannableStringBuilder();
+        java.util.List<String> rows = new java.util.ArrayList<>(java.util.Arrays.asList(f.facts.split("\n")));
+        if (!f.deadline.isEmpty()) rows.add("Deadline|" + Ui.prettyDate(f.deadline));
+        for (String row : rows) {
+            int bar = row.indexOf('|');
+            if (bar <= 0) continue;
+            if (facts.length() > 0) facts.append("\n");
+            int start = facts.length();
+            facts.append(row.substring(0, bar)).append("  ");
+            facts.setSpan(new ForegroundColorSpan(getColor(R.color.grey)), start, facts.length(), 0);
+            facts.append(row.substring(bar + 1));
+        }
+        if (facts.length() > 0) {
+            TextView t = line("", 13, getColor(R.color.text), 8);
+            t.setText(facts);
+            card.addView(t);
+        }
+        if (!f.why.isEmpty()) card.addView(line("Why: " + f.why, 13, getColor(R.color.sub), 8));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, Ui.dp(this, 12), 0, 0);
+        TextView open = line(f.site.isEmpty() ? "Open source page" : "Open " + f.site, 14, accentColor(), 0);
+        open.setMaxLines(1);
+        open.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        open.setOnClickListener(v -> openUrl(f.url));
+        row.addView(open, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView track = line("Track in inbox", 14, accentColor(), 0);
+        track.setOnClickListener(v -> {
+            final String text = f.title + "\n" + f.what + "\n" + f.facts.replace("|", ": ")
+                    + (f.deadline.isEmpty() ? "" : "\nDeadline: " + f.deadline);
+            new Thread(() -> Capture.save(getApplicationContext(), text, f.url, "manual", null, false)).start();
+            Toast.makeText(this, "Added to your inbox. Deadline reminders are on.", Toast.LENGTH_SHORT).show();
+        });
+        row.addView(track);
+        card.addView(row);
+        return card;
+    }
+
+    private int accentColor() {
+        return getColor(R.color.accent);
+    }
+
+    private void openUrl(String url) {
+        try {
+            Uri u = Uri.parse(url.trim());
+            String scheme = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.US);
+            if (scheme.equals("https") || scheme.equals("http")) startActivity(new Intent(Intent.ACTION_VIEW, u));
+        } catch (Exception e) {
+            Toast.makeText(this, "No app can open this link", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** Collapsed by default: who did what, with counts. Tap to read that agent's own output. */
+    private View stepCard(final Team.Step s) {
+        int color = Team.agentColor(this, s.agent);
+        LinearLayout card = card();
+        Team.Agent a = Team.agent(s.agent);
         String state;
         switch (s.status) {
-            case "done": state = s.searches > 0 ? s.searches + " web searches" : "done"; break;
+            case "done":
+                state = a != null && a.search ? s.searches + " searches, " + s.found + " results" : "done";
+                break;
             case "run": state = "working…"; break;
             case "fail": state = "failed"; break;
             default: state = "waiting";
         }
-        TextView head = new TextView(this);
-        head.setText(Team.agentName(s.agent).toUpperCase(Locale.US) + "  ·  " + state);
-        head.setTextSize(11);
+        TextView head = line(Team.agentName(s.agent).toUpperCase(Locale.US) + "  ·  " + state, 11, color, 0);
         head.setLetterSpacing(0.08f);
         head.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        head.setTextColor(color);
         card.addView(head);
-
-        TextView task = new TextView(this);
-        task.setText(s.task);
-        task.setTextSize(14);
-        task.setTextColor(getColor(R.color.sub));
-        task.setLineSpacing(Ui.dp(this, 2), 1f);
-        task.setPadding(0, Ui.dp(this, 6), 0, 0);
+        TextView task = line(s.task, 13, getColor(R.color.sub), 5);
+        task.setMaxLines(2);
+        task.setEllipsize(android.text.TextUtils.TruncateAt.END);
         card.addView(task);
 
+        final TextView out = line("", 13, getColor(R.color.text), 10);
+        out.setText(format(s.output, color));
+        out.setTextIsSelectable(true);
+        boolean open = "fail".equals(s.status);
+        out.setVisibility(open && !s.output.isEmpty() ? View.VISIBLE : View.GONE);
+        card.addView(out);
         if (!s.output.isEmpty()) {
-            TextView out = new TextView(this);
-            out.setText(format(s.output, color));
-            out.setTextSize(14);
-            out.setTextColor(getColor(R.color.text));
-            out.setLineSpacing(Ui.dp(this, 3), 1f);
-            out.setTextIsSelectable(true);
-            out.setPadding(0, Ui.dp(this, 10), 0, 0);
-            card.addView(out);
+            card.setOnClickListener(v -> {
+                boolean show = out.getVisibility() != View.VISIBLE;
+                out.setVisibility(show ? View.VISIBLE : View.GONE);
+                task.setMaxLines(show ? 20 : 2);
+            });
         }
         return card;
     }
 
-    /** "## " lines become coloured headings, "- " lines become bullets. */
+    /** "## " lines become coloured headings, "- " lines become bullets, "✓" lines stay as they are. */
     static CharSequence format(String s, int accent) {
         SpannableStringBuilder sb = new SpannableStringBuilder();
-        for (String line : s.replace("**", "").split("\n")) {
+        for (String line : Ui.plain(s).split("\n")) {
             String t = line.trim();
             if (t.startsWith("#")) {
                 if (sb.length() > 0) sb.append("\n");
@@ -183,6 +280,7 @@ public class MissionActivity extends Activity {
                 sb.append(t).append("\n");
             }
         }
+        while (sb.length() > 0 && sb.charAt(sb.length() - 1) == '\n') sb.delete(sb.length() - 1, sb.length());
         return sb;
     }
 
@@ -190,9 +288,13 @@ public class MissionActivity extends Activity {
         if (m == null) return;
         StringBuilder sb = new StringBuilder(m.title.isEmpty() ? m.goal : m.title).append("\n\n");
         if (!m.report.isEmpty()) sb.append(m.report).append("\n");
-        for (Team.Step s : Db.get(this).steps(id)) {
-            sb.append("\n— ").append(Team.agentName(s.agent)).append(": ").append(s.task).append("\n")
-                    .append(s.output).append("\n");
+        int n = 0;
+        for (Team.Finding f : Db.get(this).findings(id)) {
+            sb.append("\n").append(++n).append(". ").append(f.title).append("\n").append(f.what);
+            if (!f.facts.isEmpty()) sb.append("\n").append(f.facts.replace("|", ": "));
+            if (!f.deadline.isEmpty()) sb.append("\nDeadline: ").append(Ui.prettyDate(f.deadline));
+            if (f.fit >= 0) sb.append("\nFit ").append(f.fit).append("/100. ").append(f.why);
+            sb.append("\n").append(f.url).append("\n");
         }
         startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain")
                 .putExtra(Intent.EXTRA_SUBJECT, m.title)

@@ -10,61 +10,74 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Text-in, text-out across every provider the user has a key for. Gemini first; Groq and OpenRouter
- * (open-source models, OpenAI-style API) take over when it fails or is over its limit.
+ * Text-in, text-out across every provider the user has a key for. The provider chosen in Settings
+ * answers first; the others take over when it fails or is over its limit.
  */
 public final class Llm {
     static final String GROQ = "https://api.groq.com/openai/v1";
     static final String OPENROUTER = "https://openrouter.ai/api/v1";
+    private static final String[] ORDER = {"gemini", "custom", "groq", "openrouter"};
 
     private Llm() {}
 
+    private static boolean has(Context c, String provider) {
+        switch (provider) {
+            case "gemini": return !Prefs.key(c).isEmpty();
+            case "groq": return !Prefs.groqKey(c).isEmpty();
+            case "openrouter": return !Prefs.openRouterKey(c).isEmpty();
+            default: return !Prefs.customKey(c).isEmpty() && !Prefs.customBase(c).isEmpty()
+                    && !Prefs.modelCustom(c).isEmpty();
+        }
+    }
+
     public static boolean any(Context c) {
-        return !Prefs.key(c).isEmpty() || hasBackup(c);
+        return has(c, "gemini") || hasBackup(c);
     }
 
     public static boolean hasBackup(Context c) {
-        return !Prefs.groqKey(c).isEmpty() || !Prefs.openRouterKey(c).isEmpty();
+        return has(c, "custom") || has(c, "groq") || has(c, "openrouter");
     }
 
+    private static List<String> order(Context c, boolean withGemini) {
+        List<String> out = new ArrayList<>();
+        String first = Prefs.brain(c);
+        if (has(c, first) && (withGemini || !first.equals("gemini"))) out.add(first);
+        for (String p : ORDER) {
+            if (!out.contains(p) && has(c, p) && (withGemini || !p.equals("gemini"))) out.add(p);
+        }
+        return out;
+    }
+
+    /** Thinking work: the preferred provider, then every other one. */
     public static String chat(Context c, String prompt) throws Exception {
-        String gem = Prefs.key(c);
-        Exception first = null;
-        if (!gem.isEmpty()) {
-            try {
-                JSONArray parts = new JSONArray().put(new JSONObject().put("text", prompt));
-                return Gemini.generate(gem, Prefs.modelSort(c), parts, false, false).text;
-            } catch (Exception e) {
-                first = e;
-            }
-        }
-        try {
-            return backup(c, prompt);
-        } catch (Exception e) {
-            throw first != null ? first : e;
-        }
+        return run(c, order(c, true), prompt);
     }
 
-    /** Groq, then OpenRouter. */
+    /** Everything except Gemini, for when Gemini itself just failed. */
     public static String backup(Context c, String prompt) throws Exception {
-        Exception last = null;
-        String groq = Prefs.groqKey(c);
-        if (!groq.isEmpty()) {
+        return run(c, order(c, false), prompt);
+    }
+
+    private static String run(Context c, List<String> providers, String prompt) throws Exception {
+        Exception first = null;
+        for (String p : providers) {
             try {
-                return openAi(GROQ, groq, Prefs.modelGroq(c), prompt);
+                switch (p) {
+                    case "gemini":
+                        JSONArray parts = new JSONArray().put(new JSONObject().put("text", prompt));
+                        return Gemini.generate(Prefs.key(c), Prefs.modelResearch(c), parts, false, false).text;
+                    case "groq":
+                        return openAi(GROQ, Prefs.groqKey(c), Prefs.modelGroq(c), prompt);
+                    case "openrouter":
+                        return openAi(OPENROUTER, Prefs.openRouterKey(c), Prefs.modelOpenRouter(c), prompt);
+                    default:
+                        return openAi(Prefs.customBase(c), Prefs.customKey(c), Prefs.modelCustom(c), prompt);
+                }
             } catch (Exception e) {
-                last = e;
+                if (first == null) first = e;
             }
         }
-        String or = Prefs.openRouterKey(c);
-        if (!or.isEmpty()) {
-            try {
-                return openAi(OPENROUTER, or, Prefs.modelOpenRouter(c), prompt);
-            } catch (Exception e) {
-                last = e;
-            }
-        }
-        throw last != null ? last : new IOException("Add an API key in Settings first.");
+        throw first != null ? first : new IOException("Add an API key in Settings first.");
     }
 
     private static String openAi(String base, String key, String model, String prompt) throws Exception {

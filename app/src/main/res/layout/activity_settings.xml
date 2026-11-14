@@ -109,6 +109,96 @@
 
             <TextView
                 style="@style/Label"
+                android:text="3 · Web search key (free)" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Lets Saathi run real web searches itself, so research and team reports come from actual pages with working links. Free: 1,000 searches a month, no card."
+                android:textColor="@color/sub"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/keyTavily"
+                style="@style/Input"
+                android:hint="Tavily key (starts with tvly-)"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/btnGetSearch"
+                style="@style/BtnGhost"
+                android:layout_marginTop="10dp"
+                android:text="Get a free search key" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Which model thinks first" />
+
+            <TextView
+                android:id="@+id/brain"
+                style="@style/BtnGhost"
+                android:text="Gemini" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Used for the team's reasoning, reports and Ask. The others step in when it is busy. Reading screenshots always uses Gemini."
+                android:textColor="@color/sub"
+                android:textSize="13sp" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Another provider (optional)" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Any service with an OpenAI-style API: NVIDIA (free Kimi and DeepSeek), Moonshot, DeepSeek, Z.ai and others."
+                android:textColor="@color/sub"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btnPreset"
+                style="@style/BtnGhost"
+                android:text="Choose a provider" />
+
+            <EditText
+                android:id="@+id/customBase"
+                style="@style/Input"
+                android:layout_marginTop="8dp"
+                android:hint="Address (https://…/v1)"
+                android:importantForAutofill="no"
+                android:inputType="textUri"
+                android:singleLine="true" />
+
+            <EditText
+                android:id="@+id/keyCustom"
+                style="@style/Input"
+                android:layout_marginTop="8dp"
+                android:hint="Key"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:singleLine="true" />
+
+            <EditText
+                android:id="@+id/modelCustom"
+                style="@style/Input"
+                android:layout_marginTop="8dp"
+                android:hint="Model name"
+                android:importantForAutofill="no"
+                android:inputType="textNoSuggestions"
+                android:singleLine="true" />
+
+            <TextView
+                style="@style/Label"
                 android:text="Extra models (optional backups)" />
 
             <TextView
@@ -157,25 +247,23 @@
 
             <TextView
                 style="@style/Label"
-                android:text="Gemini model for sorting" />
+                android:text="Gemini models for reading captures (first that works)" />
 
             <EditText
                 android:id="@+id/modelSort"
                 style="@style/Input"
                 android:importantForAutofill="no"
-                android:inputType="textNoSuggestions"
-                android:singleLine="true" />
+                android:inputType="textNoSuggestions|textMultiLine" />
 
             <TextView
                 style="@style/Label"
-                android:text="Gemini model for research (needs free Google Search)" />
+                android:text="Gemini models for thinking (first that works)" />
 
             <EditText
                 android:id="@+id/modelResearch"
                 style="@style/Input"
                 android:importantForAutofill="no"
-                android:inputType="textNoSuggestions"
-                android:singleLine="true" />
+                android:inputType="textNoSuggestions|textMultiLine" />
 
             <TextView
                 style="@style/Label"

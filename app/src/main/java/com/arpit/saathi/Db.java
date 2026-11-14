@@ -23,7 +23,7 @@ public class Db extends SQLiteOpenHelper {
     }
 
     private Db(Context c) {
-        super(c, "saathi.db", null, 3);
+        super(c, "saathi.db", null, 4);
     }
 
     @Override
@@ -44,7 +44,19 @@ public class Db extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE items ADD COLUMN rev INTEGER DEFAULT 0");
             createTasks(db);
         }
-        if (oldVersion < 3) createTeam(db);
+        if (oldVersion < 3) {
+            createTeam(db);
+        } else if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE steps ADD COLUMN queries TEXT");
+            db.execSQL("ALTER TABLE steps ADD COLUMN found INTEGER DEFAULT 0");
+            createFindings(db);
+        }
+    }
+
+    private void createFindings(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS findings (id INTEGER PRIMARY KEY AUTOINCREMENT, mission_id INTEGER, "
+                + "step_id INTEGER, title TEXT, what TEXT, facts TEXT, deadline TEXT, status TEXT, url TEXT, "
+                + "site TEXT, fit INTEGER DEFAULT -1, why TEXT, rank INTEGER DEFAULT 0)");
     }
 
     private void createTeam(SQLiteDatabase db) {
@@ -53,7 +65,8 @@ public class Db extends SQLiteOpenHelper {
                 + "error TEXT)");
         db.execSQL("CREATE TABLE IF NOT EXISTS steps (id INTEGER PRIMARY KEY AUTOINCREMENT, mission_id INTEGER, "
                 + "idx INTEGER, agent TEXT, task TEXT, status TEXT, output TEXT, sources TEXT, "
-                + "searches INTEGER DEFAULT 0)");
+                + "searches INTEGER DEFAULT 0, queries TEXT, found INTEGER DEFAULT 0)");
+        createFindings(db);
     }
 
     private void createTasks(SQLiteDatabase db) {
@@ -238,6 +251,7 @@ public class Db extends SQLiteOpenHelper {
 
     public void deleteMission(long id) {
         getWritableDatabase().delete("steps", "mission_id=?", new String[]{String.valueOf(id)});
+        getWritableDatabase().delete("findings", "mission_id=?", new String[]{String.valueOf(id)});
         getWritableDatabase().delete("missions", "id=?", new String[]{String.valueOf(id)});
         changed();
     }
@@ -272,8 +286,9 @@ public class Db extends SQLiteOpenHelper {
         return out;
     }
 
-    public long addStep(long missionId, int idx, String agent, String task) {
+    public long addStep(long missionId, int idx, String agent, String task, String queries) {
         ContentValues v = new ContentValues();
+        v.put("queries", queries);
         v.put("mission_id", missionId);
         v.put("idx", idx);
         v.put("agent", agent);
@@ -308,7 +323,61 @@ public class Db extends SQLiteOpenHelper {
                 s.status = str(c, "status");
                 s.output = str(c, "output");
                 s.sources = str(c, "sources");
+                s.queries = str(c, "queries");
+                s.found = c.getInt(c.getColumnIndexOrThrow("found"));
                 out.add(s);
+            }
+        }
+        return out;
+    }
+
+    public long addFinding(Team.Finding f) {
+        ContentValues v = new ContentValues();
+        v.put("mission_id", f.missionId);
+        v.put("step_id", f.stepId);
+        v.put("title", f.title);
+        v.put("what", f.what);
+        v.put("facts", f.facts);
+        v.put("deadline", f.deadline);
+        v.put("status", f.status);
+        v.put("url", f.url);
+        v.put("site", f.site);
+        v.put("why", "");
+        long id = getWritableDatabase().insert("findings", null, v);
+        changed();
+        return id;
+    }
+
+    public void setFinding(long id, ContentValues v) {
+        getWritableDatabase().update("findings", v, "id=?", new String[]{String.valueOf(id)});
+        changed();
+    }
+
+    public void deleteFindingsOfStep(long stepId) {
+        getWritableDatabase().delete("findings", "step_id=?", new String[]{String.valueOf(stepId)});
+    }
+
+    /** A mission's findings, best first once the analyst has ranked them. */
+    public List<Team.Finding> findings(long missionId) {
+        List<Team.Finding> out = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT * FROM findings WHERE mission_id=" + missionId
+                + " ORDER BY (rank=0), rank, fit DESC, id", new String[0])) {
+            while (c.moveToNext()) {
+                Team.Finding f = new Team.Finding();
+                f.id = c.getLong(c.getColumnIndexOrThrow("id"));
+                f.missionId = missionId;
+                f.stepId = c.getLong(c.getColumnIndexOrThrow("step_id"));
+                f.fit = c.getInt(c.getColumnIndexOrThrow("fit"));
+                f.rank = c.getInt(c.getColumnIndexOrThrow("rank"));
+                f.title = str(c, "title");
+                f.what = str(c, "what");
+                f.facts = str(c, "facts");
+                f.deadline = str(c, "deadline");
+                f.status = str(c, "status");
+                f.url = str(c, "url");
+                f.site = str(c, "site");
+                f.why = str(c, "why");
+                out.add(f);
             }
         }
         return out;
@@ -323,6 +392,7 @@ public class Db extends SQLiteOpenHelper {
         getWritableDatabase().delete("items", null, null);
         getWritableDatabase().delete("tasks", null, null);
         getWritableDatabase().delete("steps", null, null);
+        getWritableDatabase().delete("findings", null, null);
         getWritableDatabase().delete("missions", null, null);
         changed();
     }

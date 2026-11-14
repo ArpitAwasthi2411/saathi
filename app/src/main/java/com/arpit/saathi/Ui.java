@@ -123,6 +123,23 @@ public final class Ui {
         return new SimpleDateFormat("EEE d MMM", Locale.US).format(new Date(millis)) + ", " + time;
     }
 
+    /** "careers.example.com" from a full address; empty for Google's opaque redirect links. */
+    public static String site(String url) {
+        try {
+            String h = android.net.Uri.parse(url).getHost();
+            if (h == null || h.contains("vertexaisearch")) return "";
+            return h.startsWith("www.") ? h.substring(4) : h;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Removes the markdown symbols models add (bold stars, backticks) so text reads cleanly. */
+    public static String plain(String s) {
+        return s == null ? "" : s.replace("**", "").replace("`", "")
+                .replaceAll("(?<![A-Za-z0-9*])\\*(?=\\S)([^*\n]+?)(?<=\\S)\\*(?![A-Za-z0-9*])", "$1");
+    }
+
     public static String appName(String pkg) {
         if (pkg == null || pkg.isEmpty()) return "";
         switch (pkg) {

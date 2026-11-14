@@ -95,8 +95,10 @@ public class TeamActivity extends Activity {
         }
         Db.get(this).addMission(kind, goal);
         ProcessJob.kick(this, ProcessJob.JOB_TEAM);
-        Toast.makeText(this, "Assigned. You'll get a notification when the report is ready.",
-                Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, Search.available(this) || "report".equals(kind)
+                ? "Assigned. You'll get a notification when the report is ready."
+                : "Assigned, but there is no web search key yet (Settings, section 3), so research may fail.",
+                Toast.LENGTH_LONG).show();
     }
 
     private void reload() {
@@ -106,10 +108,13 @@ public class TeamActivity extends Activity {
         adapter.notifyDataSetChanged();
         findViewById(R.id.empty).setVisibility(missions.isEmpty() ? View.VISIBLE : View.GONE);
 
-        int searches = 0;
-        for (Team.Step s : steps) searches += s.searches;
-        ((TextView) findViewById(R.id.stats)).setText(missions.size() + " missions  ·  " + steps.size()
-                + " agent tasks  ·  " + searches + " web searches");
+        int searches = 0, results = 0;
+        for (Team.Step s : steps) {
+            searches += s.searches;
+            results += s.found;
+        }
+        ((TextView) findViewById(R.id.stats)).setText(missions.size() + " missions  ·  " + searches
+                + " web searches  ·  " + results + " sourced results");
 
         LinearLayout roster = findViewById(R.id.roster);
         roster.removeAllViews();
@@ -180,24 +185,26 @@ public class TeamActivity extends Activity {
             ((TextView) v.findViewById(R.id.due)).setText("");
             ((TextView) v.findViewById(R.id.title)).setText(m.title.isEmpty() ? m.goal : m.title);
 
-            int total = 0, done = 0, searches = 0;
+            int total = 0, done = 0, searches = 0, results = 0;
             String now = "";
             for (Team.Step s : steps) {
                 if (s.missionId != m.id) continue;
                 total++;
                 searches += s.searches;
+                results += s.found;
                 if ("done".equals(s.status)) done++;
                 if ("run".equals(s.status)) now = Team.agentName(s.agent) + " is working";
             }
             String line;
             if ("failed".equals(m.status)) line = m.error;
-            else if ("done".equals(m.status)) line = m.report.replace('\n', ' ').replace("## ", "");
+            else if ("done".equals(m.status)) line = m.report.split("\n")[0];
             else if (!now.isEmpty()) line = now + "…";
             else if (total == 0) line = "running".equals(m.status) ? "Chief is planning…" : "Waiting to start";
             else line = "Chief is writing the report…";
             ((TextView) v.findViewById(R.id.summary)).setText(line);
             ((TextView) v.findViewById(R.id.fit)).setText("report".equals(m.kind) ? "Chief"
-                    : done + "/" + total + " agent tasks  ·  " + searches + " searches");
+                    : "running".equals(m.status) ? done + "/" + total + " steps done"
+                    : results + " results  ·  " + searches + " searches");
             ((TextView) v.findViewById(R.id.state)).setText(
                     new SimpleDateFormat("d MMM, h:mm a", Locale.US).format(new Date(m.created)));
             return v;

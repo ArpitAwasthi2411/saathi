@@ -260,7 +260,7 @@ public class DetailActivity extends Activity {
     /** Light formatting for the research text: "## " lines become headings, "- " lines become bullets. */
     private CharSequence format(String s, int accent) {
         SpannableStringBuilder sb = new SpannableStringBuilder();
-        for (String line : s.replace("**", "").split("\n")) {
+        for (String line : Ui.plain(s).split("\n")) {
             String t = line.trim();
             if (t.startsWith("#")) {
                 String h = t.replaceFirst("^#+\\s*", "");

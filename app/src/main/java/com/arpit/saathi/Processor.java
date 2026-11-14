@@ -330,7 +330,6 @@ public final class Processor {
                     .append("offers), ## How you could use it (specific to this user's projects), ")
                     .append("## Alternatives, ## Getting started.\n");
         }
-        p.append("Use the Google Search tool for this; do not answer from memory alone.\n");
         p.append("Format: plain text. Each section heading on its own line starting with '## '. Bullets ")
                 .append("start with '- '. No bold, no tables. Under 350 words. Say so when something could ")
                 .append("not be confirmed; never invent facts, dates or links.\n");
@@ -340,20 +339,51 @@ public final class Processor {
                     .append("APPLY_LINK: full URL or unknown\n");
         }
 
-        final String offline = "Live web search was not available for this one, so this is from the model's "
-                + "own knowledge. Check dates and links before relying on them.\n\n";
+        final String offline = "No live web search ran for this one, so this is from the model's own "
+                + "knowledge and is unverified. Check dates and links before relying on them.\n\n";
         String gem = Prefs.key(c);
         String answer, note = "";
         List<String[]> found = new java.util.ArrayList<>();
-        if (gem.isEmpty()) {
+        List<Search.Source> pages = new java.util.ArrayList<>();
+        if (Search.available(c)) {
+            // the app searches and the model reads only those pages
+            List<String> qs = new java.util.ArrayList<>();
+            String subject = (it.name.isEmpty() ? it.title : it.name).trim();
+            if (govt) {
+                qs.add(subject + " official notification last date apply");
+                qs.add(subject + " eligibility fee exam date");
+            } else if (internship) {
+                qs.add(subject + " apply deadline eligibility stipend");
+                qs.add((it.org.isEmpty() ? subject : it.org) + " internship careers official");
+            } else if ("algorithm".equals(it.type)) {
+                qs.add(subject + " paper");
+                qs.add(subject + " code github results");
+            } else {
+                qs.add(subject + " pricing free tier");
+                qs.add(subject + " review alternatives");
+            }
+            pages = Search.run(c, qs, 4, 8, false);
+            if (pages.isEmpty()) {
+                answer = "Searched the web for this and nothing relevant came back, so there is nothing "
+                        + "verified to add beyond what the post itself says.";
+            } else {
+                answer = Llm.chat(c, p + "\nWEB PAGES FETCHED JUST NOW:\n" + Search.pack(pages)
+                        + "IMPORTANT: for every fact about the outside world (dates, fees, stipend, "
+                        + "eligibility, results, prices) use ONLY these pages and mark it with the page, "
+                        + "like [S2]. If the pages do not say, write 'not found' for that point. Never write "
+                        + "a web address. On the APPLY_LINK line write a page number such as S3, or unknown.\n");
+                for (Search.Source sr : pages) found.add(new String[]{sr.title, sr.url});
+            }
+        } else if (gem.isEmpty()) {
             answer = Llm.backup(c, p.toString());
             note = offline;
         } else {
             try {
                 JSONArray parts = new JSONArray().put(new JSONObject().put("text", p.toString()));
-                Gemini.Reply r = Gemini.generate(gem, Prefs.modelResearch(c), parts, false, true);
+                Gemini.Reply r = Gemini.generate(gem, Prefs.GROUNDED_MODEL, parts, false, true);
                 answer = r.text;
                 found = r.sources;
+                if (r.searches == 0) note = offline;
             } catch (Exception searchFailed) {
                 answer = Llm.chat(c, p.toString());
                 note = offline;
@@ -379,11 +409,18 @@ public final class Processor {
         }
 
         ContentValues v = new ContentValues();
-        v.put("research", note + body.toString().trim());
+        v.put("research", note + Ui.plain(body.toString()).trim());
         v.put("sources", src.toString().trim());
         v.put("state", 2);
         v.put("attempts", 0);
         v.put("error", "");
+        java.util.regex.Matcher pm = java.util.regex.Pattern.compile("^\\[?S(\\d+)\\]?$").matcher(apply);
+        if (pm.matches()) { // a page number: turn it into that page's real address
+            int n = Integer.parseInt(pm.group(1));
+            apply = n >= 1 && n <= pages.size() ? pages.get(n - 1).url : "";
+        } else if (!pages.isEmpty()) {
+            apply = ""; // with fetched pages, only a cited page counts as the link
+        }
         if (apply.startsWith("http") && !it.links.contains(apply)) {
             v.put("links", it.links.isEmpty() ? apply : apply + "\n" + it.links);
         }

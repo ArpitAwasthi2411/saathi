@@ -27,7 +27,26 @@ public final class Gemini {
 
     private Gemini() {}
 
-    public static Reply generate(String key, String model, JSONArray parts, boolean json, boolean search)
+    /** Tries each model in a comma-separated list until one answers (busy, over-limit or retired ones are skipped). */
+    public static Reply generate(String key, String models, JSONArray parts, boolean json, boolean search)
+            throws Exception {
+        Exception last = null;
+        for (String m : models.split(",")) {
+            m = m.trim();
+            if (m.startsWith("models/")) m = m.substring(7);
+            if (m.isEmpty()) continue;
+            try {
+                return generateOne(key, m, parts, json, search);
+            } catch (IOException e) {
+                last = e;
+                String msg = e.getMessage() == null ? "" : e.getMessage();
+                if (msg.startsWith("HTTP 401") || msg.startsWith("HTTP 403")) break; // the key itself is the problem
+            }
+        }
+        throw last != null ? last : new IOException("No Gemini model is set");
+    }
+
+    private static Reply generateOne(String key, String model, JSONArray parts, boolean json, boolean search)
             throws Exception {
         JSONObject body = new JSONObject();
         body.put("contents", new JSONArray().put(new JSONObject().put("role", "user").put("parts", parts)));

@@ -20,11 +20,10 @@ final class Team {
 
     static final Agent[] AGENTS = {
             new Agent("scout", "Scout", true, R.color.teal,
-                    "You search the web for opportunities, programmes, people, organisations and official "
-                            + "pages, and report exactly what you found with links and dates."),
+                    "You find opportunities, programmes, people, organisations and official pages on the "
+                            + "web."),
             new Agent("scholar", "Scholar", true, R.color.violet,
-                    "You study papers, algorithms, tools and technical topics on the web and explain them "
-                            + "clearly, with the key ideas, results and where to read more."),
+                    "You find papers, algorithms, tools, products and technical facts on the web."),
             new Agent("analyst", "Analyst", false, R.color.amber,
                     "You compare options, check them against the founder's profile and goals, point out "
                             + "risks and gaps, and recommend what to pick and why."),
@@ -43,8 +42,15 @@ final class Team {
 
     static final class Step {
         long id, missionId;
-        int idx, searches;
-        String agent = "", task = "", status = "wait", output = "", sources = "";
+        int idx, searches, found;
+        String agent = "", task = "", status = "wait", output = "", sources = "", queries = "";
+    }
+
+    /** One thing a research agent found, always tied to the web page it came from. */
+    static final class Finding {
+        long id, missionId, stepId;
+        int fit = -1, rank;
+        String title = "", what = "", facts = "", deadline = "", status = "", url = "", site = "", why = "";
     }
 
     private Team() {}

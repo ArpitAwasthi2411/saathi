@@ -120,7 +120,7 @@
 
             <TextView
                 style="@style/Label"
-                android:text="Chief's report" />
+                android:text="Summary" />
 
             <TextView
                 android:id="@+id/report"
@@ -134,9 +134,20 @@
                 android:textSize="15sp" />
 
             <TextView
+                android:id="@+id/resultsLabel"
+                style="@style/Label"
+                android:text="Results" />
+
+            <LinearLayout
+                android:id="@+id/results"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
                 android:id="@+id/stepsLabel"
                 style="@style/Label"
-                android:text="Who did what" />
+                android:text="How the team worked (tap to open)" />
 
             <LinearLayout
                 android:id="@+id/steps"

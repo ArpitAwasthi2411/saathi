@@ -25,6 +25,11 @@ final class Memory {
                 .append("If the user asks you to remind them, schedule something or add a task, end your reply ")
                 .append("with one line per task in exactly this form:\n")
                 .append("TASK: <short title> | <YYYY-MM-DD HH:MM in 24-hour time, or none>\n")
+                .append("You cannot browse the web yourself. If the request needs looking things up online ")
+                .append("or several steps of work (finding opportunities, researching a topic, comparing ")
+                .append("options, drafting from research), do not answer from memory: reply with one short ")
+                .append("sentence saying the team will handle it, and end with exactly one line:\n")
+                .append("MISSION: <the full request, rewritten clearly as a mission for the team>\n")
                 .append("Write short, plain answers. No markdown symbols; start bullets with \"- \".\n\n");
 
         p.append("OPEN TASKS:\n");
@@ -128,9 +133,20 @@ final class Memory {
     /** Pulls "TASK: title | time" lines out of a model reply, creates those tasks, returns the rest. */
     static String applyTasks(Context c, String reply) {
         StringBuilder text = new StringBuilder(), added = new StringBuilder();
-        int made = 0;
-        for (String line : reply.replace("**", "").split("\n")) {
+        int made = 0, missions = 0;
+        for (String line : Ui.plain(reply).split("\n")) {
             String t = line.trim();
+            if (t.toUpperCase(Locale.US).startsWith("MISSION:")) {
+                String goal = t.substring(8).trim();
+                if (!goal.isEmpty() && missions == 0) {
+                    missions++;
+                    Db.get(c).addMission("mission", goal.length() > 600 ? goal.substring(0, 600) : goal);
+                    ProcessJob.kick(c, ProcessJob.JOB_TEAM);
+                    added.append("\n✓ Handed to the team: ").append(goal)
+                            .append("\nYou'll get a notification when the report is ready (Team screen).");
+                }
+                continue;
+            }
             if (!t.toUpperCase(Locale.US).startsWith("TASK:")) {
                 text.append(line).append("\n");
                 continue;

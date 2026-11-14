@@ -7,7 +7,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class Prefs {
-    public static final String DEFAULT_MODEL = "gemini-2.5-flash";
+    /** Gemini model lists: the first one the key can use right now wins, the rest are fallbacks. */
+    public static final String DEFAULT_SORT = "gemini-3.5-flash-lite, gemini-3.6-flash, gemini-3.1-flash-lite";
+    public static final String DEFAULT_THINK = "gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite";
+    /** The only family with free built-in Google Search; Google retires it on 1 Dec 2026. */
+    public static final String GROUNDED_MODEL = "gemini-2.5-flash";
     public static final String DEFAULT_GROQ = "openai/gpt-oss-120b";
     public static final String DEFAULT_OPENROUTER = "openrouter/free";
 
@@ -64,9 +68,30 @@ public final class Prefs {
 
     // ---- models
 
-    public static String modelSort(Context c) { return model(c, "modelSort", DEFAULT_MODEL); }
+    public static String tavilyKey(Context c) { return secret(c, "tavily"); }
 
-    public static String modelResearch(Context c) { return model(c, "modelResearch", DEFAULT_MODEL); }
+    public static String customKey(Context c) { return secret(c, "custom"); }
+
+    public static String customBase(Context c) {
+        String b = sp(c).getString("customBase", "").trim();
+        while (b.endsWith("/")) b = b.substring(0, b.length() - 1);
+        return b.startsWith("https://") ? b : "";
+    }
+
+    public static String modelCustom(Context c) { return sp(c).getString("modelCustom", "").trim(); }
+
+    /** Which provider answers first for thinking work: gemini, custom, groq or openrouter. */
+    public static String brain(Context c) { return sp(c).getString("brain", "gemini"); }
+
+    public static String modelSort(Context c) { return geminiList(c, "modelSort", DEFAULT_SORT); }
+
+    public static String modelResearch(Context c) { return geminiList(c, "modelResearch", DEFAULT_THINK); }
+
+    private static String geminiList(Context c, String pref, String def) {
+        String m = sp(c).getString(pref, "").trim();
+        // the old single default is being retired by Google: move those installs to the new list
+        return m.isEmpty() || m.equals("gemini-2.5-flash") ? def : m;
+    }
 
     public static String modelGroq(Context c) { return model(c, "modelGroq", DEFAULT_GROQ); }
 

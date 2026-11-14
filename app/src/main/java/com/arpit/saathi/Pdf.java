@@ -24,7 +24,9 @@ final class Pdf {
 
     private final PdfDocument doc = new PdfDocument();
     private final TextPaint title = paint(20, true, 0xFF111827), h = paint(13, true, 0xFF3B4CCA),
-            body = paint(10.5f, false, 0xFF1F2937), small = paint(8.5f, false, 0xFF6B7280);
+            body = paint(10.5f, false, 0xFF1F2937), small = paint(8.5f, false, 0xFF6B7280),
+            bold = paint(11.5f, true, 0xFF111827), accent = paint(9.5f, true, 0xFF3B4CCA);
+    private float indent;
     private PdfDocument.Page page;
     private Canvas cv;
     private float y;
@@ -59,14 +61,14 @@ final class Pdf {
 
     private void text(String s, TextPaint p, float gapAfter) {
         if (s == null || s.trim().isEmpty()) return;
-        StaticLayout l = StaticLayout.Builder.obtain(s, 0, s.length(), p, W - 2 * M)
+        StaticLayout l = StaticLayout.Builder.obtain(s, 0, s.length(), p, (int) (W - 2 * M - indent))
                 .setLineSpacing(2.5f, 1f).build();
         for (int i = 0; i < l.getLineCount(); i++) {
             float lineHeight = l.getLineBottom(i) - l.getLineTop(i);
             if (y + lineHeight > H - M) newPage();
             int start = l.getLineStart(i), end = l.getLineEnd(i);
             while (end > start && (s.charAt(end - 1) == '\n' || s.charAt(end - 1) == '\r')) end--;
-            cv.drawText(s, start, end, M, y + (l.getLineBaseline(i) - l.getLineTop(i)), p);
+            cv.drawText(s, start, end, M + indent, y + (l.getLineBaseline(i) - l.getLineTop(i)), p);
             y += lineHeight;
         }
         y += gapAfter;
@@ -76,28 +78,47 @@ final class Pdf {
         y += g;
     }
 
-    /** Text using the app's light markup: "## " headings and "- " bullets. */
+    /** Text using the app's light markup: "## " headings and "- " bullets (indented ones stay indented). */
     private void rich(String s) {
-        for (String line : s.replace("**", "").split("\n")) {
+        for (String line : Ui.plain(s).split("\n")) {
             String t = line.trim();
             if (t.isEmpty()) continue;
             if (t.startsWith("#")) {
                 gap(6);
                 text(t.replaceFirst("^#+\\s*", ""), h, 4);
-            } else if (t.startsWith("- ") || t.startsWith("* ")) {
-                text("•  " + t.substring(2), body, 2);
+            } else if (t.startsWith("- ") || t.startsWith("* ") || t.startsWith("• ")) {
+                boolean nested = line.startsWith("  ") || line.startsWith("\t");
+                indent = nested ? 26 : 10;
+                text((nested ? "–  " : "•  ") + t.substring(2).trim(), body, 2);
+                indent = 0;
             } else {
                 text(t, body, 4);
             }
         }
     }
 
+    /** Numbered list of pages, shown by site name with the real address; opaque redirect links are skipped. */
     private void sources(String packed) {
         if (packed == null || packed.isEmpty()) return;
+        int n = 0;
         for (String s : packed.split("\n")) {
             int bar = s.lastIndexOf('|');
-            if (bar > 0) text(s.substring(0, bar) + "  —  " + s.substring(bar + 1), small, 2);
+            if (bar <= 0) continue;
+            String url = s.substring(bar + 1), name = s.substring(0, bar).trim();
+            boolean opaque = Ui.site(url).isEmpty();
+            if (name.length() > 80) name = name.substring(0, 80) + "…";
+            text(++n + ". " + name + (opaque ? "" : "  —  " + (url.length() > 110 ? url.substring(0, 110) + "…" : url)),
+                    small, 2);
         }
+    }
+
+    private void rule() {
+        if (y + 14 > H - M) newPage();
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setColor(0xFFD1D5DB);
+        p.setStrokeWidth(0.8f);
+        cv.drawLine(M, y + 4, W - M, y + 4, p);
+        y += 14;
     }
 
     private void write(OutputStream os) throws Exception {
@@ -112,27 +133,81 @@ final class Pdf {
 
     // ---------------------------------------------------------------- documents
 
-    private void mission(Context c, Team.Mission m, boolean appendix) {
+    /** A mission as a short brief: summary, ranked results with their source, next steps, then a compact log. */
+    private void mission(Context c, Team.Mission m, boolean withLog) {
         List<Team.Step> steps = Db.get(c).steps(m.id);
+        List<Team.Finding> found = Db.get(c).findings(m.id);
         int searches = 0;
         for (Team.Step s : steps) searches += s.searches;
+
         text(m.title.isEmpty() ? m.goal : m.title, title, 4);
-        text(date(m.created) + "  ·  " + m.status + "  ·  " + steps.size() + " agent tasks  ·  " + searches
-                + " web searches", small, 8);
-        if (!"report".equals(m.kind)) {
-            text("Mission", h, 3);
-            text(m.goal, body, 6);
+        text(date(m.created) + ("report".equals(m.kind) ? "" : "  ·  " + searches + " web searches  ·  "
+                + found.size() + " sourced results") + ("done".equals(m.status) ? "" : "  ·  " + m.status), small, 6);
+        if (!"report".equals(m.kind) && !m.title.isEmpty()) text("Asked: " + m.goal, small, 8);
+
+        // the report is "summary, then ## Next steps": results go between the two
+        String summary = m.report, rest = "";
+        int cut = m.report.indexOf("\n## ");
+        if (cut >= 0) {
+            summary = m.report.substring(0, cut);
+            rest = m.report.substring(cut + 1);
         }
-        if (!m.report.isEmpty()) rich(m.report);
-        if (!m.error.isEmpty()) text("Problem: " + m.error, body, 6);
-        if (!appendix || steps.isEmpty()) return;
-        gap(10);
-        text("Each agent's work in full", title, 6);
-        for (Team.Step s : steps) {
-            text(Team.agentName(s.agent) + ": " + s.task, h, 3);
-            rich(s.output);
-            sources(s.sources);
+        if (!summary.trim().isEmpty()) {
+            if (!"report".equals(m.kind)) text("Summary", h, 4);
+            rich(summary);
+        }
+        if (!m.error.isEmpty()) text("Did not finish: " + m.error, body, 6);
+
+        if (!found.isEmpty()) {
             gap(8);
+            text("Results", h, 6);
+            int n = 0;
+            for (Team.Finding f : found) {
+                String head = ++n + ".  " + f.title;
+                text(head, bold, 2);
+                indent = 16;
+                StringBuilder tag = new StringBuilder();
+                if (f.fit >= 0) tag.append("Fit ").append(f.fit).append("/100");
+                if (!f.deadline.isEmpty()) {
+                    tag.append(tag.length() > 0 ? "   ·   " : "").append("Deadline ").append(Ui.prettyDate(f.deadline));
+                } else if (!f.status.isEmpty()) {
+                    tag.append(tag.length() > 0 ? "   ·   " : "").append("Status: ").append(f.status);
+                }
+                if (tag.length() > 0) text(tag.toString(), accent, 2);
+                text(f.what, body, 2);
+                if (!f.facts.isEmpty()) text(f.facts.replace("|", ": ").replace("\n", "   ·   "), body, 2);
+                if (!f.why.isEmpty()) text("Why it fits: " + f.why, body, 2);
+                text("Source: " + (f.url.length() > 120 ? f.url.substring(0, 120) + "…" : f.url), small, 0);
+                indent = 0;
+                gap(9);
+            }
+        }
+        if (!rest.trim().isEmpty()) rich(rest);
+
+        // drafts and notes written by the non-research agents are part of the deliverable
+        for (Team.Step s : steps) {
+            Team.Agent a = Team.agent(s.agent);
+            boolean research = a != null && a.search;
+            if (!"done".equals(s.status) || s.output.trim().isEmpty()) continue;
+            if (research && s.found > 0) continue;
+            if (research && s.output.startsWith("Searched:")) continue;
+            if ("analyst".equals(s.agent) && s.output.startsWith("Ranked ")) continue;
+            gap(6);
+            text("From " + Team.agentName(s.agent), h, 4);
+            rich(s.output);
+            if (research) sources(s.sources);
+        }
+
+        if (!withLog || steps.isEmpty()) return;
+        gap(8);
+        rule();
+        text("How the team worked", h, 4);
+        for (Team.Step s : steps) {
+            Team.Agent a = Team.agent(s.agent);
+            String task = s.task.length() > 120 ? s.task.substring(0, 120) + "…" : s.task;
+            String count = "fail".equals(s.status) ? "failed"
+                    : a != null && a.search ? s.searches + " searches, " + s.found + " results" : s.status;
+            text(Team.agentName(s.agent) + " (" + count + "): " + task, small, 3);
         }
     }
 
@@ -143,28 +218,31 @@ final class Pdf {
         return p;
     }
 
-    /** Everything the team has done, newest first, with totals up front. */
+    /** Everything the team has done, newest first, with totals up front. Missions follow on from each other. */
     static Pdf ofAllMissions(Context c) {
         Pdf p = new Pdf();
         List<Team.Mission> all = Db.get(c).missions();
         List<Team.Step> steps = Db.get(c).steps(0);
-        int searches = 0;
-        for (Team.Step s : steps) searches += s.searches;
-        p.text("Saathi team log", p.title, 4);
-        p.text("Made " + date(System.currentTimeMillis()) + "  ·  " + all.size() + " missions  ·  " + steps.size()
-                + " agent tasks  ·  " + searches + " web searches", p.small, 10);
-        for (Team.Agent a : Team.AGENTS) {
-            int n = 0, s = 0;
-            for (Team.Step st : steps) {
-                if (!a.key.equals(st.agent)) continue;
-                n++;
-                s += st.searches;
-            }
-            p.text("•  " + a.name + ": " + n + " tasks" + (a.search ? ", " + s + " web searches" : ""), p.body, 2);
+        int searches = 0, results = 0;
+        for (Team.Step s : steps) {
+            searches += s.searches;
+            results += s.found;
         }
+        p.text("Saathi team log", p.title, 4);
+        p.text(date(System.currentTimeMillis()) + "  ·  " + all.size() + " missions  ·  " + searches
+                + " web searches  ·  " + results + " sourced results", p.small, 8);
+        StringBuilder who = new StringBuilder();
+        for (Team.Agent a : Team.AGENTS) {
+            int n = 0;
+            for (Team.Step st : steps) if (a.key.equals(st.agent) && "done".equals(st.status)) n++;
+            who.append(who.length() > 0 ? "   ·   " : "").append(a.name).append(" ").append(n);
+        }
+        p.text("Steps completed:   " + who, p.body, 4);
         for (Team.Mission m : all) {
-            p.newPage();
-            p.mission(c, m, true);
+            p.gap(6);
+            p.rule();
+            if (p.y > H - 220) p.newPage(); // don't start a mission at the very bottom of a page
+            p.mission(c, m, false);
         }
         return p;
     }
@@ -173,7 +251,7 @@ final class Pdf {
         Pdf p = new Pdf();
         p.text(it.title.isEmpty() ? "Saved item" : it.title, p.title, 4);
         p.text(Ui.typeLabel(it.type) + "  ·  saved " + date(it.created), p.small, 8);
-        p.text(it.summary, p.body, 6);
+        p.text(Ui.plain(it.summary), p.body, 6);
         String[][] facts = {{"Organisation", it.org}, {"Role", it.role}, {"Location", it.location},
                 {"Stipend", it.stipend}, {"Eligibility", it.eligibility},
                 {"Deadline", Ui.prettyDate(it.deadline)}, {"Next step", it.action}};
