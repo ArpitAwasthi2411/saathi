@@ -97,6 +97,8 @@ public class SettingsActivity extends Activity {
         findViewById(R.id.btnGetKey).setOnClickListener(v -> open("https://aistudio.google.com/apikey"));
         findViewById(R.id.btnTest).setOnClickListener(v -> test());
         findViewById(R.id.btnErase).setOnClickListener(v -> confirmErase());
+        findViewById(R.id.btnBackup).setOnClickListener(v -> Backup.askSave(this));
+        findViewById(R.id.btnRestore).setOnClickListener(v -> Backup.askRestore(this));
     }
 
     @Override
@@ -115,6 +117,14 @@ public class SettingsActivity extends Activity {
     protected void onPause() {
         super.onPause();
         save();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        if (requestCode == Backup.REQ_SAVE) Backup.save(this, data.getData());
+        else if (requestCode == Backup.REQ_OPEN) Backup.restore(this, data.getData());
     }
 
     private void showBrain() {

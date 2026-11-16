@@ -58,6 +58,8 @@ public class MainActivity extends Activity {
         findViewById(R.id.btnAdd).setOnClickListener(v -> addDialog());
         findViewById(R.id.btnTasks).setOnClickListener(v -> startActivity(new Intent(this, TasksActivity.class)));
         findViewById(R.id.btnTeam).setOnClickListener(v -> startActivity(new Intent(this, TeamActivity.class)));
+        findViewById(R.id.btnGate).setOnClickListener(v ->
+                startActivity(new Intent(this, com.arpit.saathi.gate.GateActivity.class)));
         findViewById(R.id.btnAsk).setOnClickListener(v -> startActivity(new Intent(this, AskActivity.class)));
         list.setOnItemLongClickListener((p, v, pos, id) -> {
             final Item it = items.get(pos);

@@ -22,6 +22,12 @@ public class Db extends SQLiteOpenHelper {
         return inst;
     }
 
+    /** Used before a restore replaces the file. */
+    public static synchronized void closeAll() {
+        if (inst != null) inst.close();
+        inst = null;
+    }
+
     private Db(Context c) {
         super(c, "saathi.db", null, 4);
     }

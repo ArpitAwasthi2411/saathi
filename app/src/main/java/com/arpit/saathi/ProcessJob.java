@@ -12,6 +12,7 @@ public class ProcessJob extends JobService {
     public static final int JOB_SORT = 1;
     public static final int JOB_RESEARCH = 2;
     public static final int JOB_TEAM = 3;
+    public static final int JOB_GATE = 4;
 
     public static void kick(Context c, int jobId) {
         JobInfo.Builder b = new JobInfo.Builder(jobId, new ComponentName(c, ProcessJob.class));
@@ -30,6 +31,8 @@ public class ProcessJob extends JobService {
                 if (params.getJobId() == JOB_SORT) {
                     retry = Processor.sortPending(app);
                     if (!Db.get(app).byState(1).isEmpty()) kick(app, JOB_RESEARCH);
+                } else if (params.getJobId() == JOB_GATE) {
+                    retry = com.arpit.saathi.gate.GateWork.importPending(app);
                 } else if (params.getJobId() == JOB_TEAM) {
                     retry = TeamRunner.runPending(app);
                 } else {

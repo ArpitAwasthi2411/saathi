@@ -32,6 +32,10 @@ Every later push builds a new APK that installs over the old one and keeps your 
   Writer, Planner), they work in the background, and you get a report you can save as a PDF.
 - Research is source-bound: the app runs the web searches (Tavily key) and models may only report
   what the fetched pages say, with the page attached. Without search it says so instead of guessing.
+- GATE DA: add a mock result PDF and Saathi reads every question, stores the marks, and gives a full
+  worked solution with the concept for any question; revision notes and practice for every syllabus
+  topic; a study log that exports a progress file Claude can read.
+- Backup and restore of everything to one file.
 - Models: Gemini, with Groq and OpenRouter (open-source models) as optional backups.
 
 ## Privacy

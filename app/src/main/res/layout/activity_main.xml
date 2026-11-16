@@ -154,7 +154,17 @@
             android:layout_width="0dp"
             android:layout_height="44dp"
             android:layout_marginStart="5dp"
+            android:layout_marginEnd="5dp"
             android:layout_weight="1"
             android:text="Team" />
+
+        <TextView
+            android:id="@+id/btnGate"
+            style="@style/BtnGhost"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="5dp"
+            android:layout_weight="1"
+            android:text="GATE" />
     </LinearLayout>
 </LinearLayout>

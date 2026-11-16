@@ -1,0 +1,235 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script src="katex/katex.min.js"></script>
+<style>
+  :root {
+    --bg: #0B0D14; --card: #151925; --stroke: #252B3B; --text: #ECEFF7; --sub: #98A1B5;
+    --accent: #7AA2FF; --accent2: #B18CFF; --green: #4ADE80; --red: #F87171; --amber: #FBBF24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 16px/1.6 -apple-system, "Roboto", sans-serif; padding: 4px 18px 40px; overflow-wrap: anywhere; }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 28px 0 8px; }
+  h3 { font-size: 17px; margin: 22px 0 6px; color: var(--text); }
+  h4 { font-size: 15px; margin: 16px 0 4px; color: var(--sub); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  b { color: #fff; }
+  code { background: var(--card); border: 1px solid var(--stroke); border-radius: 6px; padding: 1px 5px; font-size: 14px; }
+  pre { background: var(--card); border: 1px solid var(--stroke); border-radius: 10px; padding: 12px; overflow-x: auto; font-size: 13px; line-height: 1.45; }
+  pre code { border: 0; padding: 0; background: none; }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+  .katex { font-size: 1.06em; }
+  .card { background: var(--card); border: 1px solid var(--stroke); border-radius: 16px; padding: 14px 16px; margin: 12px 0; }
+  .meta { color: var(--sub); font-size: 13px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em; padding: 3px 10px; border-radius: 20px; margin-right: 6px; }
+  .ok { color: var(--green); background: rgba(74,222,128,.14); }
+  .bad { color: var(--red); background: rgba(248,113,113,.14); }
+  .part { color: var(--amber); background: rgba(251,191,36,.14); }
+  .skip { color: var(--sub); background: rgba(152,161,181,.14); }
+  .opt { border: 1px solid var(--stroke); border-radius: 12px; padding: 10px 12px; margin: 8px 0; display: flex; gap: 10px; }
+  .opt .l { font-weight: 700; color: var(--sub); min-width: 18px; }
+  .opt.correct { border-color: var(--green); background: rgba(74,222,128,.08); }
+  .opt.mine { border-color: var(--red); background: rgba(248,113,113,.08); }
+  .opt.mine.correct { border-color: var(--green); }
+  .opt .tag { margin-left: auto; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .tag.c { color: var(--green); } .tag.m { color: var(--red); }
+  .answers { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; margin-top: 10px; }
+  .answers span:nth-child(odd) { color: var(--sub); }
+  .hidden { display: none; }
+  button { font: inherit; font-size: 15px; font-weight: 600; color: #0A1024; border: 0; border-radius: 12px; padding: 11px 16px;
+           background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 100%; margin-top: 10px; }
+  button.ghost { background: var(--card); color: var(--text); border: 1px solid var(--stroke); }
+  .loading { color: var(--sub); padding: 18px 0; }
+  .loading::after { content: ""; display: inline-block; width: 14px; height: 14px; margin-left: 8px; vertical-align: -2px;
+                    border: 2px solid var(--stroke); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .chat .q { color: var(--accent); font-weight: 600; margin-top: 16px; }
+  .practice .opt { cursor: pointer; }
+  .practice .opt.pick-ok { border-color: var(--green); background: rgba(74,222,128,.10); }
+  .practice .opt.pick-bad { border-color: var(--red); background: rgba(248,113,113,.10); }
+  .warn { border-left: 3px solid var(--amber); padding: 6px 12px; color: var(--amber); background: rgba(251,191,36,.07); border-radius: 6px; }
+  a { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 8px 0; }
+  th, td { border-bottom: 1px solid var(--stroke); padding: 6px 4px; text-align: left; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ---------------------------------------------------------------- text with maths -> HTML
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function math(tex, display) {
+  try { return katex.renderToString(tex, { displayMode: display, throwOnError: false, strict: false }); }
+  catch (e) { return esc(tex); }
+}
+// pulls maths out first so markdown never touches it, then puts the rendered maths back
+function inline(s) {
+  var keep = [];
+  var put = function (html) { keep.push(html); return "\u0000" + (keep.length - 1) + "\u0000"; };
+  s = String(s || "")
+    .replace(/\$\$([\s\S]+?)\$\$/g, function (_, t) { return put(math(t, true)); })
+    .replace(/\\\[([\s\S]+?)\\\]/g, function (_, t) { return put(math(t, true)); })
+    .replace(/\\\(([\s\S]+?)\\\)/g, function (_, t) { return put(math(t, false)); })
+    .replace(/\$([^\$\n]+?)\$/g, function (_, t) { return put(math(t, false)); });
+  s = esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  return s.replace(/\u0000(\d+)\u0000/g, function (_, i) { return keep[+i]; });
+}
+function md(src) {
+  var lines = String(src || "").replace(/\r/g, "").split("\n");
+  var out = [], list = null, para = [], code = null;
+  var flushPara = function () { if (para.length) { out.push("<p>" + inline(para.join(" ")) + "</p>"); para = []; } };
+  var flushList = function () { if (list) { out.push("</" + list + ">"); list = null; } };
+  // text that belongs to the list item above it (a formula or a wrapped line under "1. ...")
+  var intoItem = function (html) {
+    var last = out.length - 1;
+    if (last >= 0 && /<\/li>$/.test(out[last])) { out[last] = out[last].replace(/<\/li>$/, " " + html + "</li>"); return true; }
+    return false;
+  };
+  var lastWasItem = false;
+  for (var i = 0; i < lines.length; i++) {
+    var raw = lines[i], t = raw.trim(), m;
+    if (code !== null) {
+      if (t.indexOf("```") === 0) { out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>"); code = null; }
+      else code.push(raw);
+      continue;
+    }
+    if (t.indexOf("```") === 0) { flushPara(); flushList(); code = []; lastWasItem = false; continue; }
+    if (t === "") { flushPara(); continue; } // a blank line alone does not end a list: the next line decides
+    var block = null;
+    if (t.indexOf("$$") === 0 && t.lastIndexOf("$$") === 0) { // a display formula over several lines
+      var parts = [t.slice(2)];
+      while (++i < lines.length && lines[i].indexOf("$$") < 0) parts.push(lines[i]);
+      if (i < lines.length) parts.push(lines[i].replace("$$", ""));
+      block = math(parts.join("\n"), true);
+    } else if (/^\$\$[\s\S]*\$\$$/.test(t) || /^\\\[[\s\S]*\\\]$/.test(t)) {
+      block = inline(t);
+    }
+    if (block !== null) {
+      flushPara();
+      if (!(list && lastWasItem && intoItem(block))) { flushList(); out.push(block); }
+      continue;
+    }
+    if ((m = t.match(/^(#{1,4})\s+(.*)$/))) {
+      flushPara(); flushList(); lastWasItem = false;
+      var tag = m[1].length <= 2 ? "h3" : "h4";
+      out.push("<" + tag + ">" + inline(m[2]) + "</" + tag + ">"); continue;
+    }
+    if ((m = t.match(/^[-*•]\s+(.*)$/))) {
+      flushPara(); if (list !== "ul") { flushList(); out.push("<ul>"); list = "ul"; }
+      out.push("<li>" + inline(m[1]) + "</li>"); lastWasItem = true; continue;
+    }
+    if ((m = t.match(/^(\d+)[.)]\s+(.*)$/))) {
+      flushPara(); if (list !== "ol") { flushList(); out.push('<ol start="' + (+m[1]) + '">'); list = "ol"; }
+      out.push("<li>" + inline(m[2]) + "</li>"); lastWasItem = true; continue;
+    }
+    if ((m = t.match(/^>\s?(.*)$/))) { flushPara(); flushList(); lastWasItem = false; out.push('<p class="warn">' + inline(m[1]) + "</p>"); continue; }
+    if (list && lastWasItem && /^\s/.test(raw) && intoItem(inline(t))) continue; // indented continuation
+    flushList(); lastWasItem = false; para.push(t);
+  }
+  if (code !== null) out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>");
+  flushPara(); flushList();
+  return out.join("\n");
+}
+
+// ---------------------------------------------------------------- views
+var RESULT = { correct: ["ok", "Correct"], wrong: ["bad", "Wrong"], partial: ["part", "Partly correct"],
+               unattempted: ["skip", "Not attempted"] };
+function letters(s) { return String(s || "").toUpperCase().replace(/[^A-Z]/g, "").split(""); }
+
+function question(d) {
+  var h = [];
+  var r = RESULT[d.result] || RESULT.unattempted;
+  h.push('<div class="meta">');
+  if (!d.retry) h.push('<span class="pill ' + r[0] + '">' + r[1].toUpperCase() + "</span>");
+  h.push("Question " + d.n + " · " + d.marks + (d.marks == 1 ? " mark" : " marks") + " · " + d.typeLabel);
+  if (d.topic) h.push("<br>" + esc(d.subject) + " → " + esc(d.topic));
+  h.push("</div>");
+  h.push('<div class="card">' + md(d.question) + "</div>");
+
+  var key = letters(d.correct), mine = letters(d.yours);
+  if (d.options && d.options.length) {
+    d.options.forEach(function (o) {
+      var isKey = key.indexOf(String(o.l).toUpperCase()) >= 0, isMine = mine.indexOf(String(o.l).toUpperCase()) >= 0;
+      var cls = d.retry ? "opt" : "opt" + (isKey ? " correct" : "") + (isMine ? " mine" : "");
+      var tag = d.retry ? "" : (isKey && isMine ? '<span class="tag c">YOUR ANSWER ✓</span>'
+                : isKey ? '<span class="tag c">ANSWER</span>' : isMine ? '<span class="tag m">YOUR ANSWER</span>' : "");
+      h.push('<div class="' + cls + '" data-l="' + esc(o.l) + '"><span class="l">' + esc(o.l) + "</span><span>" + inline(o.t) + "</span>" + tag + "</div>");
+    });
+  }
+  h.push('<div id="ans" class="' + (d.retry ? "hidden" : "") + '"><div class="answers">' +
+         "<span>Your answer</span><span>" + (d.yours ? inline(d.yours) : "Not attempted") + "</span>" +
+         "<span>Answer key</span><span>" + (d.correct ? inline(d.correct) : "Not shown in the PDF") + "</span>" +
+         "<span>Score</span><span>" + d.score + " / " + d.max + "</span></div></div>");
+  if (d.retry) h.push('<button onclick="reveal()">Reveal answer and solution</button>');
+
+  h.push('<div id="sol" class="' + (d.retry ? "hidden" : "") + '">');
+  h.push("<h2>Solution</h2>");
+  if (d.solution) h.push(md(d.solution));
+  else if (d.solving) h.push('<div class="loading">Working out the full solution</div>');
+  else if (d.error) h.push('<p class="warn">' + esc(d.error) + "</p>");
+  if (d.chat && d.chat.length) {
+    h.push('<div class="chat"><h2>Your questions</h2>');
+    d.chat.forEach(function (c) { h.push('<div class="q">' + inline(c.q) + "</div>" + (c.a ? md(c.a) : '<div class="loading">Thinking</div>')); });
+    h.push("</div>");
+  }
+  h.push("</div>");
+  return h.join("");
+}
+
+function topic(d) {
+  var h = [];
+  h.push('<div class="meta">' + esc(d.subject) + "</div>");
+  if (d.mine) h.push('<div class="card meta">' + d.mine + "</div>");
+  if (d.notes) h.push(md(d.notes));
+  else if (d.loading) h.push('<div class="loading">Writing your revision notes</div>');
+  else if (d.error) h.push('<p class="warn">' + esc(d.error) + "</p>");
+  if (d.practice && d.practice.length) {
+    h.push('<h2>Practice</h2><div class="practice">');
+    d.practice.forEach(function (p, i) {
+      h.push('<div class="card" id="pq' + i + '"><p><b>' + (i + 1) + ".</b> " + inline(p.q) + "</p>");
+      (p.options || []).forEach(function (o) {
+        h.push('<div class="opt" onclick="pick(' + i + ",'" + esc(o.l) + '\', this)"><span class="l">' + esc(o.l) + "</span><span>" + inline(o.t) + "</span></div>");
+      });
+      h.push('<button class="ghost" onclick="show(' + i + ')">Show answer</button>');
+      h.push('<div class="hidden" id="pa' + i + '"><p><b>Answer: ' + inline(p.answer) + "</b></p>" + md(p.why) + "</div></div>");
+    });
+    h.push("</div>");
+  } else if (d.practicing) {
+    h.push('<h2>Practice</h2><div class="loading">Making practice questions</div>');
+  }
+  return h.join("");
+}
+
+var current = null;
+function render(d) {
+  // a question the student already revealed stays revealed when its solution arrives
+  if (current && d.kind === "question" && current.kind === "question" && current.id === d.id && current.retry === false) d.retry = false;
+  current = d;
+  var keepY = window.scrollY;
+  document.getElementById("root").innerHTML = d.kind === "topic" ? topic(d) : d.kind === "page" ? md(d.text) : question(d);
+  if (d.keepScroll) window.scrollTo(0, keepY); else window.scrollTo(0, 0);
+}
+function reveal() {
+  document.getElementById("ans").classList.remove("hidden");
+  document.getElementById("sol").classList.remove("hidden");
+  current.retry = false; var y = window.scrollY; render(Object.assign({}, current, { keepScroll: true })); window.scrollTo(0, y);
+}
+function pick(i, l, el) {
+  var p = current.practice[i], ok = letters(p.answer).indexOf(String(l).toUpperCase()) >= 0;
+  el.classList.add(ok ? "pick-ok" : "pick-bad");
+  if (ok) show(i);
+}
+function show(i) { document.getElementById("pa" + i).classList.remove("hidden"); }
+</script>
+</body>
+</html>
