@@ -322,6 +322,12 @@
                 android:textSize="13sp" />
 
             <TextView
+                android:id="@+id/btnMemory"
+                style="@style/BtnGhost"
+                android:layout_marginTop="14dp"
+                android:text="What Saathi remembers about you" />
+
+            <TextView
                 style="@style/Label"
                 android:text="Backup" />
 

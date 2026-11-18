@@ -3,6 +3,7 @@ package com.arpit.saathi.gate;
 import android.content.Context;
 
 import com.arpit.saathi.Prefs;
+import com.arpit.saathi.Recall;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -51,7 +52,7 @@ public final class Tutor {
         StringBuilder p = new StringBuilder();
         p.append("You are a GATE Data Science and AI tutor in a spoken revision session with your student.\n")
                 .append("Now: ").append(now()).append("\nAbout the student:\n").append(Prefs.profile(c))
-                .append("\n\nTOPIC: ").append(t.subject).append(" / ").append(t.name).append("\n");
+                .append("\n").append(Recall.block(c)).append("\nTOPIC: ").append(t.subject).append(" / ").append(t.name).append("\n");
         if (s[0] > 0) {
             p.append("In their mocks on this topic: ").append(s[1]).append(" right, ").append(s[2])
                     .append(" wrong, ").append(s[3]).append(" skipped.\n");
@@ -79,7 +80,7 @@ public final class Tutor {
         Gate.Q q = GateDb.get(c).q(qId);
         StringBuilder p = new StringBuilder();
         p.append("You are a GATE Data Science and AI tutor talking a student through a question from their ")
-                .append("mock, out loud.\n\n").append(q == null ? "" : GateWork.questionBlock(q));
+                .append("mock, out loud.\n").append(Recall.block(c)).append("\n").append(q == null ? "" : GateWork.questionBlock(q));
         if (q != null && !q.solution.isEmpty()) {
             p.append("\nWritten solution (for you; don't read it out word for word):\n")
                     .append(q.solution.length() > 3500 ? q.solution.substring(0, 3500) + "…" : q.solution).append("\n");
@@ -135,24 +136,30 @@ public final class Tutor {
         Gate.Q q = GateDb.get(c).q(qId);
         if (q == null) return "Say: this question could not be found, moving on.";
         String verdict = "unattempted".equals(q.result) ? "skipped it" : "partial".equals(q.result)
-                ? "got it partly right" : "got it wrong";
-        return "You are the student's GATE DA tutor, reviewing their mock out loud, one question at a time. This is "
-                + "question " + k + " of " + n + " in the review. The student " + verdict + ".\n\n"
+                ? "got it partly right" : "correct".equals(q.result) ? "got it right" : "got it wrong";
+        boolean right = "correct".equals(q.result);
+        return "You are the student's GATE DA tutor, reviewing their mock out loud, one question at a time. "
+                + (k > 0 ? "This is question " + k + " of " + n + " in the review. " : "The student asked about this "
+                + "question specifically. ") + "The student " + verdict + ".\n" + Recall.block(c) + "\n"
                 + GateWork.questionBlock(q)
                 + (q.solution.isEmpty() ? "" : "\nWorked solution (for you; don't read it word for word):\n"
                 + (q.solution.length() > 3000 ? q.solution.substring(0, 3000) + "…" : q.solution) + "\n")
-                + "\n" + MARKING + "\n\nIn about 150 words, spoken: start with \"Question " + q.n + "\" and say in "
-                + "one line what it asks. Then what went wrong: for a wrong or partial answer, the exact mistake "
-                + "behind their answer; for a skip, whether it was worth attempting given the marking. Then the key "
-                + "idea and the quickest correct method, with the answer. End with one line on how to get this "
-                + "kind of question right next time, and the marks it is worth. Solve it yourself first; if the "
-                + "official key looks wrong, say so. Do not ask a question at the end.\n\n" + SPOKEN;
+                + "\n" + MARKING + "\n\n" + (right
+                ? "In about 100 words, spoken: start with \"Question " + q.n + "\", say what it asks, confirm why "
+                + "their answer is right, the concept behind it, and any faster method."
+                : "In about 150 words, spoken: start with \"Question " + q.n + "\" and say in one line what it "
+                + "asks. Then what went wrong: for a wrong or partial answer, the exact mistake behind their "
+                + "answer; for a skip, whether it was worth attempting given the marking. Then the key idea and "
+                + "the quickest correct method, with the answer. End with one line on how to get this kind of "
+                + "question right next time, and the marks it is worth.")
+                + " Solve it yourself first; if the official key looks wrong, say so. Do not ask a question at the "
+                + "end.\n\n" + SPOKEN;
     }
 
     public static String reviewFollowup(Context c, long qId, List<String[]> turns, String said) {
         Gate.Q q = GateDb.get(c).q(qId);
         return "You are the student's GATE DA tutor, reviewing a mock question out loud. They interrupted with a "
-                + "question about it.\n\n" + (q == null ? "" : GateWork.questionBlock(q)) + "\nSO FAR:\n"
+                + "question about it.\n" + Recall.block(c) + "\n" + (q == null ? "" : GateWork.questionBlock(q)) + "\nSO FAR:\n"
                 + history(turns) + "Student: " + said + "\n\nAnswer them directly. Then say \"say next when "
                 + "you're ready\". " + SPOKEN + "\nTutor:";
     }
@@ -179,7 +186,7 @@ public final class Tutor {
         p.append("You are the student's personal GATE DA coach, in a spoken conversation. You know their ")
                 .append("progress from the data below; use only that data for facts about them, and say so when ")
                 .append("something isn't recorded.\nNow: ").append(now()).append("\nAbout the student:\n")
-                .append(Prefs.profile(c)).append("\n\nTHEIR GATE DATA:\n").append(progress(c))
+                .append(Prefs.profile(c)).append("\n").append(Recall.block(c)).append("\nTHEIR GATE DATA:\n").append(progress(c))
                 .append("\nYou can: tell them how they're doing and what to focus on next; quiz them; teach any ")
                 .append("syllabus topic they name, as a dialogue with check questions; plan their next study ")
                 .append("session.\n\n").append(COMMANDS).append("\n").append(SPOKEN).append("\n\n");

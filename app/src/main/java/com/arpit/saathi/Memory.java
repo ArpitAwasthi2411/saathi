@@ -34,6 +34,7 @@ final class Memory {
                 .append("MISSION: <the full request, rewritten clearly as a mission for the team>\n")
                 .append("Write short, plain answers. No markdown symbols; start bullets with \"- \".\n\n");
 
+        p.append(Recall.block(c)).append("\n");
         p.append("OPEN TASKS:\n");
         int n = 0;
         for (Task t : Db.get(c).tasks()) {
@@ -173,6 +174,19 @@ final class Memory {
                 continue;
             }
             if (t.toUpperCase(Locale.US).startsWith("REVISED:")) continue; // handled by the voice tutor
+            if (t.toUpperCase(Locale.US).startsWith("REMEMBER:")) {
+                String fact = t.substring(9).trim();
+                if (!fact.isEmpty()) {
+                    Db.get(c).remember("fact", fact);
+                    added.append("\n✓ Remembered: ").append(fact);
+                }
+                continue;
+            }
+            if (t.toUpperCase(Locale.US).startsWith("FORGET:")) {
+                int n = Db.get(c).forget(t.substring(7).trim());
+                added.append(n > 0 ? "\n✓ Forgotten" : "\n(Nothing matching to forget)");
+                continue;
+            }
             if (!t.toUpperCase(Locale.US).startsWith("TASK:")) {
                 text.append(line).append("\n");
                 continue;

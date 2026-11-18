@@ -29,7 +29,7 @@ public class Db extends SQLiteOpenHelper {
     }
 
     private Db(Context c) {
-        super(c, "saathi.db", null, 4);
+        super(c, "saathi.db", null, 5);
     }
 
     @Override
@@ -42,6 +42,7 @@ public class Db extends SQLiteOpenHelper {
                 + "rev INTEGER DEFAULT 0)");
         createTasks(db);
         createTeam(db);
+        createMemory(db);
     }
 
     @Override
@@ -57,6 +58,12 @@ public class Db extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE steps ADD COLUMN found INTEGER DEFAULT 0");
             createFindings(db);
         }
+        if (oldVersion < 5) createMemory(db);
+    }
+
+    private void createMemory(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS memory (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER, kind TEXT, "
+                + "text TEXT)");
     }
 
     private void createFindings(SQLiteDatabase db) {
@@ -392,6 +399,69 @@ public class Db extends SQLiteOpenHelper {
     private static String str(Cursor c, String col) {
         String v = c.getString(c.getColumnIndexOrThrow(col));
         return v == null ? "" : v;
+    }
+
+    // ---------------------------------------------------------------- assistant memory
+
+    /** kind: "fact" (something lasting about you) or "summary" (what a past conversation covered). */
+    public void remember(String kind, String text) {
+        text = text.trim();
+        if (text.isEmpty()) return;
+        if ("fact".equals(kind)) { // same fact again: keep one copy
+            getWritableDatabase().delete("memory", "kind='fact' AND lower(text)=?",
+                    new String[]{text.toLowerCase(java.util.Locale.US)});
+        }
+        ContentValues v = new ContentValues();
+        v.put("at", System.currentTimeMillis());
+        v.put("kind", kind);
+        v.put("text", text.length() > 400 ? text.substring(0, 400) : text);
+        getWritableDatabase().insert("memory", null, v);
+        if ("summary".equals(kind)) { // keep the last 30 conversation summaries
+            getWritableDatabase().execSQL("DELETE FROM memory WHERE kind='summary' AND id NOT IN (SELECT id FROM "
+                    + "memory WHERE kind='summary' ORDER BY at DESC LIMIT 30)");
+        }
+        changed();
+    }
+
+    /** Removes facts containing all the given words. Returns how many went. */
+    public int forget(String words) {
+        int n = 0;
+        String[] ws = words.toLowerCase(java.util.Locale.US).replaceAll("[^a-z0-9 ]", " ").trim().split("\\s+");
+        for (String[] m : memories("fact", 200)) {
+            String t = m[2].toLowerCase(java.util.Locale.US);
+            boolean all = ws.length > 0;
+            for (String w : ws) if (w.length() > 2 && !t.contains(w)) all = false;
+            if (all) {
+                getWritableDatabase().delete("memory", "id=?", new String[]{m[0]});
+                n++;
+            }
+        }
+        if (n > 0) changed();
+        return n;
+    }
+
+    public void deleteMemory(long id) {
+        getWritableDatabase().delete("memory", "id=?", new String[]{String.valueOf(id)});
+        changed();
+    }
+
+    public void clearMemory() {
+        getWritableDatabase().delete("memory", null, null);
+        changed();
+    }
+
+    /** {id, at, text}, newest first; kind null = everything. */
+    public List<String[]> memories(String kind, int limit) {
+        List<String[]> out = new ArrayList<>();
+        String sql = "SELECT id, at, text, kind FROM memory" + (kind == null ? "" : " WHERE kind=?")
+                + " ORDER BY at DESC LIMIT " + limit;
+        try (Cursor c = getReadableDatabase().rawQuery(sql, kind == null ? new String[0] : new String[]{kind})) {
+            while (c.moveToNext()) {
+                out.add(new String[]{String.valueOf(c.getLong(0)), String.valueOf(c.getLong(1)), c.getString(2),
+                        c.getString(3)});
+            }
+        }
+        return out;
     }
 
     public void eraseAll() {

@@ -47,6 +47,12 @@ public class VoiceActivity extends Activity implements Voice.Listener {
     private final java.util.Set<Integer> making = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
     private final List<String[]> qTurns = new ArrayList<>();
     private String lastReply = "";
+    /** A question the student asked about by number, outside the review order (-1 when none). */
+    private long detour = -1;
+    private static final String[] WORDS = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+            "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+            "nineteen"};
+    private static final String[] TENS = {"", "", "twenty", "thirty", "forty", "fifty", "sixty"};
     private boolean busy, handsFree, closing, listening;
     /** Whether to start listening by itself when the current speech ends (hands-free). */
     private boolean listenAfterSpeech;
@@ -396,7 +402,10 @@ public class VoiceActivity extends Activity implements Voice.Listener {
             bubble(said, true);
         }
         String t = norm(said);
-        if (t.matches("(ok |okay |yes |go )?(next|next one|next question|continue|go on|skip|move on|done)( please)?")) {
+        int asked = questionNumber(said);
+        if (asked > 0) {
+            explainNumber(asked);
+        } else if (t.matches("(ok |okay |yes |go )?(next|next one|next question|continue|go on|skip|move on|done)( please)?")) {
             step(idx + 1);
         } else if (t.matches("(go )?(back|previous|previous one|last one|go back)( please)?")) {
             step(Math.max(0, idx - 1));
@@ -407,13 +416,14 @@ public class VoiceActivity extends Activity implements Voice.Listener {
             showHands();
             reply("Stopping here. Say next or tap the mic when you want to carry on.", false);
         } else {
-            if (idx < 0 || idx >= order.size() || !Llm.any(this)) {
+            boolean onQuestion = detour >= 0 || (idx >= 0 && idx < order.size());
+            if (!onQuestion || !Llm.any(this)) {
                 step(Math.max(0, idx));
                 return;
             }
             busy = true;
             status.setText("Thinking…");
-            final long q = order.get(idx);
+            final long q = detour >= 0 ? detour : order.get(idx);
             final List<String[]> past = new ArrayList<>(qTurns);
             new Thread(() -> {
                 String out;
@@ -427,11 +437,67 @@ public class VoiceActivity extends Activity implements Voice.Listener {
                 main.post(() -> {
                     busy = false;
                     qTurns.add(new String[]{said, shown});
+                    turns.add(new String[]{said, shown});
                     lastReply = shown;
                     reply(shown, false); // wait for "next" after answering a question
                 });
             }, "saathi-review").start();
         }
+    }
+
+    /** "question 12", "explain Q 12", "go to number twelve" → 12; 0 when no number was asked for. */
+    static int questionNumber(String said) {
+        String t = said.toLowerCase(Locale.US).replaceAll("[^a-z0-9 ]", " ").replaceAll("\\s+", " ").trim();
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\\b(?:question|questions|q|number|no|explain|go to|open|show|about)\\s*(?:number\\s*)?(\\d{1,3})\\b")
+                .matcher(t);
+        if (m.find()) return Integer.parseInt(m.group(1));
+        m = java.util.regex.Pattern.compile("\\b(?:question|q|number)\\s+([a-z]+(?:\\s[a-z]+)?)").matcher(t);
+        if (!m.find()) return 0;
+        String[] w = m.group(1).split(" ");
+        int n = 0;
+        for (int i = 0; i < WORDS.length; i++) if (WORDS[i].equals(w[0])) n = i;
+        for (int i = 2; i < TENS.length; i++) {
+            if (TENS[i].equals(w[0])) {
+                n = i * 10;
+                if (w.length > 1) for (int k = 1; k < 10; k++) if (WORDS[k].equals(w[1])) n += k;
+            }
+        }
+        return n;
+    }
+
+    /** Explain any question of this mock by its number, right ones included; "next" then resumes the review. */
+    private void explainNumber(final int n) {
+        com.arpit.saathi.gate.Gate.Q found = null;
+        for (com.arpit.saathi.gate.Gate.Q q : GateDb.get(this).qs(mockId)) if (q.n == n) found = q;
+        if (found == null) {
+            reply("There's no question " + n + " in this mock. Say another number, or next to carry on.", true);
+            return;
+        }
+        if (!Llm.any(this)) {
+            reply("Add an API key in Settings first.", false);
+            return;
+        }
+        final long id = found.id;
+        detour = id;
+        qTurns.clear();
+        busy = true;
+        status.setText("Question " + n + "…");
+        new Thread(() -> {
+            String out;
+            try {
+                out = Llm.chat(getApplicationContext(), Tutor.reviewQuestion(getApplicationContext(), id, 0, 0));
+            } catch (Exception e) {
+                out = "That didn't work: " + e.getMessage();
+            }
+            final String shown = Ui.plain(out).trim();
+            main.post(() -> {
+                busy = false;
+                lastReply = shown;
+                turns.add(new String[]{"Explain question " + n, shown});
+                reply(shown + (idx >= 0 && idx < order.size() ? " Say next to go back to the review." : ""), true);
+            });
+        }, "saathi-review").start();
     }
 
     private String make(int i) throws Exception {
@@ -463,6 +529,7 @@ public class VoiceActivity extends Activity implements Voice.Listener {
             return;
         }
         idx = i;
+        detour = -1;
         qTurns.clear();
         if (i >= 0 && i < order.size()) covered = Math.max(covered, i + 1);
         if (!Llm.any(this)) {
@@ -485,6 +552,7 @@ public class VoiceActivity extends Activity implements Voice.Listener {
             main.post(() -> {
                 busy = false;
                 lastReply = shown;
+                turns.add(new String[]{"", shown});
                 bubble(i < 0 ? "Review" : i >= order.size() ? "Summary" : "Question " + (i + 1) + " of " + order.size(),
                         true);
                 reply(shown, true);
@@ -540,14 +608,14 @@ public class VoiceActivity extends Activity implements Voice.Listener {
         if (on) return;
         if ("review".equals(mode) && listenAfterSpeech && !busy && !closing && idx < order.size()) {
             listenAfterSpeech = false;
-            if (autoPlay()) {
+            if (autoPlay() && detour < 0) {
                 status.setText("Next in a moment… tap the mic to ask something");
                 final int at = idx;
                 main.postDelayed(() -> {
                     if (idx == at && !listening && !busy && !closing && autoPlay()) step(idx + 1);
                 }, 1800);
             } else {
-                status.setText("Say next, back, repeat, or ask about this one");
+                status.setText("Say next, back, repeat, \"question 12\", or ask about this one");
                 main.postDelayed(this::startListening, 350);
             }
             return;
@@ -584,6 +652,10 @@ public class VoiceActivity extends Activity implements Voice.Listener {
         closing = true;
         main.removeCallbacksAndMessages(null);
         voice.destroy();
+        String where = "review".equals(mode) ? "voice mock review" : "topic".equals(mode) ? "voice revision of "
+                + GateDb.get(this).topic(key).name : "question".equals(mode) ? "voice talk-through of a mock question"
+                : "coach".equals(mode) ? "GATE coach chat" : "voice chat";
+        Recall.summarise(getApplicationContext(), where, new ArrayList<>(turns));
         // a real tutoring session goes into the study log
         int spoken = 0;
         for (String[] t : turns) if (!t[0].isEmpty()) spoken++;

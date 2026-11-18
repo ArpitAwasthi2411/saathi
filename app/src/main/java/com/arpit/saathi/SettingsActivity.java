@@ -97,6 +97,7 @@ public class SettingsActivity extends Activity {
         findViewById(R.id.btnGetKey).setOnClickListener(v -> open("https://aistudio.google.com/apikey"));
         findViewById(R.id.btnTest).setOnClickListener(v -> test());
         findViewById(R.id.btnErase).setOnClickListener(v -> confirmErase());
+        findViewById(R.id.btnMemory).setOnClickListener(v -> showMemory());
         findViewById(R.id.btnBackup).setOnClickListener(v -> Backup.askSave(this));
         findViewById(R.id.btnRestore).setOnClickListener(v -> Backup.askRestore(this));
     }
@@ -125,6 +126,36 @@ public class SettingsActivity extends Activity {
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
         if (requestCode == Backup.REQ_SAVE) Backup.save(this, data.getData());
         else if (requestCode == Backup.REQ_OPEN) Backup.restore(this, data.getData());
+    }
+
+    /** Everything in long-term memory; tap one to delete it. */
+    private void showMemory() {
+        final List<String[]> all = Db.get(this).memories(null, 200);
+        if (all.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle("Memory is empty")
+                    .setMessage("Tell Saathi things to remember (\"remember that I prefer short answers\"). It also "
+                            + "keeps a one-line note after each conversation so the next one can continue.")
+                    .setPositiveButton("OK", null).show();
+            return;
+        }
+        java.text.SimpleDateFormat day = new java.text.SimpleDateFormat("d MMM", java.util.Locale.US);
+        CharSequence[] rows = new CharSequence[all.size()];
+        for (int i = 0; i < all.size(); i++) {
+            String[] m = all.get(i);
+            rows[i] = ("fact".equals(m[3]) ? "● " : day.format(new java.util.Date(Long.parseLong(m[1]))) + "  ") + m[2];
+        }
+        new AlertDialog.Builder(this).setTitle("● facts you told it · dated notes on past chats")
+                .setItems(rows, (d, which) -> new AlertDialog.Builder(this).setMessage("Forget this?\n\n" + all.get(which)[2])
+                        .setPositiveButton("Forget", (d2, w2) -> {
+                            Db.get(this).deleteMemory(Long.parseLong(all.get(which)[0]));
+                            showMemory();
+                        })
+                        .setNegativeButton("Keep", null).show())
+                .setNeutralButton("Forget everything", (d, w) -> new AlertDialog.Builder(this)
+                        .setMessage("Delete all of Saathi's memory?")
+                        .setPositiveButton("Delete", (d2, w2) -> Db.get(this).clearMemory())
+                        .setNegativeButton("Cancel", null).show())
+                .setNegativeButton("Close", null).show();
     }
 
     private void showBrain() {

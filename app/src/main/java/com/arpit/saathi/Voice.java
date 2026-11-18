@@ -337,7 +337,7 @@ public final class Voice {
                 .replaceAll("(?m)^\\s*#+\\s*", "")
                 .replaceAll("(?m)^\\s*[-*•]\\s+", "")
                 .replaceAll("(?m)^\\s*>\\s?", "")
-                .replaceAll("(?m)^\\s*(TASK|LOG|MISSION|REVISED):.*$", "")
+                .replaceAll("(?m)^\\s*(TASK|LOG|MISSION|REVISED|REMEMBER|FORGET):.*$", "")
                 .replace("**", "").replace("`", "").replace("|", ", ")
                 .replaceAll("https?://\\S+", "the link on screen")
                 .replaceAll("\\s+", " ").trim();

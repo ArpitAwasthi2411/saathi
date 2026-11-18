@@ -91,6 +91,7 @@ public class AskActivity extends Activity implements Voice.Listener {
     @Override
     protected void onDestroy() {
         if (voice != null) voice.destroy();
+        Recall.summarise(getApplicationContext(), "Ask chat", new ArrayList<>(history));
         super.onDestroy();
     }
 
