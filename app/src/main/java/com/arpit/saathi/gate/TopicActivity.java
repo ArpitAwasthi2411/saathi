@@ -59,6 +59,13 @@ public class TopicActivity extends Activity {
         });
         root.addView(study.web, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
+        TextView talk = Views.button(this, "Revise this by voice", true);
+        talk.setOnClickListener(v -> startActivity(new Intent(this, com.arpit.saathi.VoiceActivity.class)
+                .putExtra("mode", "topic").putExtra("key", key)));
+        LinearLayout.LayoutParams tl = Views.wide();
+        tl.setMargins(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), 0);
+        root.addView(talk, tl);
+
         LinearLayout row = new LinearLayout(this);
         row.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 10));
         TextView practice = Views.button(this, "Practice", false);
@@ -66,7 +73,7 @@ public class TopicActivity extends Activity {
         TextView rewrite = Views.button(this, "Rewrite", false);
         rewrite.setOnClickListener(v -> new AlertDialog.Builder(this).setMessage("Write these notes again from scratch?")
                 .setPositiveButton("Rewrite", (d, w) -> writeNotes()).setNegativeButton("Cancel", null).show());
-        TextView done = Views.button(this, "Revised", true);
+        TextView done = Views.button(this, "Revised", false);
         done.setOnClickListener(v -> markRevised());
         row.addView(practice, weight(true));
         row.addView(rewrite, weight(true));

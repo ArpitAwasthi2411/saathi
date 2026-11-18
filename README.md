@@ -35,6 +35,9 @@ Every later push builds a new APK that installs over the old one and keeps your 
 - GATE DA: add a mock result PDF and Saathi reads every question, stores the marks, and gives a full
   worked solution with the concept for any question; revision notes and practice for every syllabus
   topic; a study log that exports a progress file Claude can read.
+- Voice: talk to Saathi hands-free, or switch Ask to spoken replies. GATE voice tutor for any topic,
+  any question, a coach that knows your progress, and a mock review that walks through every missed
+  question (auto-play). Uses the phone's own speech engines.
 - Backup and restore of everything to one file.
 - Models: Gemini, with Groq and OpenRouter (open-source models) as optional backups.
 

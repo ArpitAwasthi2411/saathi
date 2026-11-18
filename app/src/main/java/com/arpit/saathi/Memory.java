@@ -25,6 +25,8 @@ final class Memory {
                 .append("If the user asks you to remind them, schedule something or add a task, end your reply ")
                 .append("with one line per task in exactly this form:\n")
                 .append("TASK: <short title> | <YYYY-MM-DD HH:MM in 24-hour time, or none>\n")
+                .append("If the user tells you what they studied or did for GATE, end with one line:\n")
+                .append("LOG: <what they did> | <minutes, or 0>\n")
                 .append("You cannot browse the web yourself. If the request needs looking things up online ")
                 .append("or several steps of work (finding opportunities, researching a topic, comparing ")
                 .append("options, drafting from research), do not answer from memory: reply with one short ")
@@ -54,6 +56,12 @@ final class Memory {
                     .append(" | ").append(cut(it.summary.replace('\n', ' '), 160)).append("\n");
         }
         if (n == 0) p.append("(nothing saved yet)\n");
+
+        String gate = com.arpit.saathi.gate.GateWork.report(c);
+        if (gate.contains("|") || gate.contains("Revised") || gate.contains("min)")) {
+            p.append("\nTHEIR GATE PREP (mocks, topic accuracy, revision, study log):\n")
+                    .append(gate.length() > 3500 ? gate.substring(0, 3500) + "…" : gate).append("\n");
+        }
 
         List<Item> top = relevant(items, question);
         if (!top.isEmpty()) {
@@ -147,6 +155,24 @@ final class Memory {
                 }
                 continue;
             }
+            if (t.toUpperCase(Locale.US).startsWith("LOG:")) {
+                String body = t.substring(4).trim();
+                int bar = body.lastIndexOf('|');
+                String what = (bar >= 0 ? body.substring(0, bar) : body).trim();
+                int mins = 0;
+                if (bar >= 0) {
+                    try {
+                        mins = Math.max(0, Math.min(1440, Integer.parseInt(body.substring(bar + 1).replaceAll("\\D", ""))));
+                    } catch (Exception ignored) {
+                    }
+                }
+                if (!what.isEmpty()) {
+                    com.arpit.saathi.gate.GateDb.get(c).log("study", what, mins);
+                    added.append("\n✓ Logged: ").append(what).append(mins > 0 ? " (" + mins + " min)" : "");
+                }
+                continue;
+            }
+            if (t.toUpperCase(Locale.US).startsWith("REVISED:")) continue; // handled by the voice tutor
             if (!t.toUpperCase(Locale.US).startsWith("TASK:")) {
                 text.append(line).append("\n");
                 continue;

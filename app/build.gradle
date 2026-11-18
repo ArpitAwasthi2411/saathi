@@ -12,7 +12,7 @@ android {
         targetSdk 34
         // every cloud build gets a higher number, so each APK installs as an update over the last
         versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger() + 100)
-        versionName '3.1'
+        versionName '3.2'
     }
 
     // One fixed key so every build can install over the previous one without losing data.

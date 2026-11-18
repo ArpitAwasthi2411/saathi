@@ -130,6 +130,20 @@ public class MockActivity extends Activity {
         List<Gate.Q> qs = GateDb.get(this).qs(id);
         if (qs.isEmpty()) return;
 
+        int missed = 0;
+        for (Gate.Q q : qs) if (q.max > 0 && !"correct".equals(q.result)) missed++;
+        if (m.ready() && missed > 0) {
+            TextView review = Views.button(this, "Review my mistakes by voice (" + missed + ")", true);
+            review.setOnClickListener(v -> startActivity(new Intent(this, com.arpit.saathi.VoiceActivity.class)
+                    .putExtra("mode", "review").putExtra("mock", id)));
+            content.addView(review);
+            TextView hint = Views.text(this, "Goes through every wrong, partial and skipped question: what went "
+                    + "wrong, how to get it right, and the marks at stake. Auto-play keeps going on its own.", 12,
+                    getColor(R.color.grey));
+            hint.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 4));
+            content.addView(hint);
+        }
+
         CheckBox retry = new CheckBox(this);
         retry.setText("Retry mode: hide answers until I try");
         retry.setTextColor(getColor(R.color.text));

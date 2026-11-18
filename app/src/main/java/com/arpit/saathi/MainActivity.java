@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
                 startActivity(new Intent(this, SettingsActivity.class)));
         findViewById(R.id.btnAdd).setOnClickListener(v -> addDialog());
         findViewById(R.id.btnTasks).setOnClickListener(v -> startActivity(new Intent(this, TasksActivity.class)));
+        findViewById(R.id.btnVoice).setOnClickListener(v -> startActivity(VoiceActivity.assistant(this)));
         findViewById(R.id.btnTeam).setOnClickListener(v -> startActivity(new Intent(this, TeamActivity.class)));
         findViewById(R.id.btnGate).setOnClickListener(v ->
                 startActivity(new Intent(this, com.arpit.saathi.gate.GateActivity.class)));

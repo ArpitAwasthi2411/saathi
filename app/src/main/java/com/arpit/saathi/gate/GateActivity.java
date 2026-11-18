@@ -59,6 +59,10 @@ public class GateActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         LinearLayout bar = Views.topBar(this, "GATE DA", "");
         sub = bar.findViewWithTag("sub");
+        android.widget.ImageButton talk = Views.icon(this, R.drawable.ic_mic, "Talk to your GATE coach");
+        talk.setOnClickListener(v -> startActivity(new Intent(this, com.arpit.saathi.VoiceActivity.class)
+                .putExtra("mode", "coach")));
+        bar.addView(talk);
         root.addView(bar);
 
         HorizontalScrollView hs = new HorizontalScrollView(this);
@@ -345,6 +349,10 @@ public class GateActivity extends Activity {
     // ---------------------------------------------------------------- revise tab
 
     private void revise() {
+        TextView coach = Views.button(this, "Talk to your GATE coach", false);
+        coach.setOnClickListener(v -> startActivity(new Intent(this, com.arpit.saathi.VoiceActivity.class)
+                .putExtra("mode", "coach")));
+        content.addView(coach);
         GateDb db = GateDb.get(this);
         Map<String, int[]> stats = new HashMap<>();
         for (Gate.Q q : db.allQs()) {

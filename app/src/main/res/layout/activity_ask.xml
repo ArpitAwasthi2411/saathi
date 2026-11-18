@@ -29,6 +29,23 @@
             android:text="Ask Saathi"
             android:textColor="@color/text"
             android:textSize="20sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/voiceToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:paddingStart="14dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="7dp"
+            android:text="Voice off"
+            android:textSize="13sp" />
     </LinearLayout>
 
     <ScrollView
@@ -55,6 +72,16 @@
         android:gravity="bottom"
         android:orientation="horizontal"
         android:padding="12dp">
+
+        <ImageButton
+            android:id="@+id/btnMic"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_mic"
+            android:contentDescription="Speak"
+            android:src="@drawable/ic_mic"
+            android:tint="@color/onAccent" />
 
         <EditText
             android:id="@+id/input"

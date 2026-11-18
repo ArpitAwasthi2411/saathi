@@ -58,6 +58,11 @@ public class QuestionActivity extends Activity {
         LinearLayout bar = Views.topBar(this, "Question", "");
         titleView = bar.findViewWithTag("title");
         subView = bar.findViewWithTag("sub");
+        TextView talk = Views.text(this, "Talk", 14, getColor(R.color.accent));
+        talk.setPadding(Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12));
+        talk.setOnClickListener(v -> startActivity(new android.content.Intent(this,
+                com.arpit.saathi.VoiceActivity.class).putExtra("mode", "question").putExtra("qid", ids[pos])));
+        bar.addView(talk);
         TextView page = Views.text(this, "Page", 14, getColor(R.color.accent));
         page.setPadding(Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12));
         page.setOnClickListener(v -> showPage());
